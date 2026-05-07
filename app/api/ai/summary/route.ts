@@ -5,15 +5,17 @@ import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_TENANT, BRANCHES } from "@/lib/types";
 
-export async function POST() {
-  const keyPreview = process.env.ANTHROPIC_API_KEY?.slice(0, 10) ?? "NOT SET";
-  console.log("[summary] ANTHROPIC_API_KEY prefix:", keyPreview);
+export async function POST(req: Request) {
+  console.log('ANTHROPIC KEY CHECK:', process.env.ANTHROPIC_API_KEY?.slice(0,15))
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const branchFilter: string | undefined = body.branch && body.branch !== "All" ? body.branch : undefined;
+
     const today = new Date().toISOString().split("T")[0];
     const sixMonthsAgo = new Date(Date.now() - 180 * 86400000).toISOString().split("T")[0];
 
-    const { data: clients, error: dbError } = await getSupabaseAdmin()
+    let query = getSupabaseAdmin()
       .from("clients")
       .select(
         "id, name, branch, visits, events, event_date, alterations, alteration_status, special_order, special_order_status, follow_up, updated_at"
@@ -21,12 +23,19 @@ export async function POST() {
       .eq("tenant_id", DEFAULT_TENANT)
       .gte("updated_at", sixMonthsAgo);
 
+    if (branchFilter) {
+      query = query.eq("branch", branchFilter);
+    }
+
+    const { data: clients, error: dbError } = await query;
+
     if (dbError) {
       return NextResponse.json({ error: `Database error: ${dbError.message}` }, { status: 500 });
     }
 
-    // Build branch stats even with an empty database â€” Claude can still generate a useful summary
-    const branchStats = BRANCHES.map((branch) => {
+    // Build branch stats even with an empty database — Claude can still generate a useful summary
+    const branchesToSummarise = branchFilter ? [branchFilter] : BRANCHES;
+    const branchStats = branchesToSummarise.map((branch) => {
       const bc = (clients ?? []).filter((c) => c.branch === branch);
       const todayVisits = bc.filter((c) =>
         (c.visits ?? []).some((v: { date: string }) => v.date === today)
@@ -60,7 +69,7 @@ export async function POST() {
       messages: [
         {
           role: "user",
-          content: `You are a business analyst for EPIC Menswear, a luxury menswear chain with 6 locations in BC and Calgary. Today is ${today}. Total clients in system: ${totalClients}.
+          content: `You are a business analyst for EPIC Menswear, a luxury menswear chain with 6 locations in BC and Calgary. Today is ${today}. ${branchFilter ? `Scope: ${branchFilter} branch only. Total clients at this branch: ${totalClients}.` : `Total clients in system: ${totalClients}.`}
 
 Branch stats (last 6 months):
 ${JSON.stringify(branchStats, null, 2)}

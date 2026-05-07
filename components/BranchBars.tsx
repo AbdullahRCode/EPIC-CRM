@@ -5,6 +5,8 @@ import { BRANCHES, deriveTags } from "@/lib/types";
 
 interface BranchBarsProps {
   clients: Client[];
+  ownerMode: boolean;
+  activeBranch: Branch | "All";
 }
 
 interface BranchStat {
@@ -16,8 +18,12 @@ interface BranchStat {
   alterationsActive: number;
 }
 
-export default function BranchBars({ clients }: BranchBarsProps) {
-  const stats: BranchStat[] = BRANCHES.map((branch) => {
+export default function BranchBars({ clients, ownerMode, activeBranch }: BranchBarsProps) {
+  const visibleBranches = !ownerMode && activeBranch !== "All"
+    ? [activeBranch as Branch]
+    : BRANCHES;
+
+  const stats: BranchStat[] = visibleBranches.map((branch) => {
     const bc = clients.filter((c) => c.branch === branch);
     const vip = bc.filter((c) => deriveTags(c).includes("VIP")).length;
     const returning = bc.filter((c) => deriveTags(c).includes("Returning")).length;

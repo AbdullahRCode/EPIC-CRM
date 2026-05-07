@@ -235,13 +235,13 @@ export default function InsightsPage() {
           </div>
 
           {/* Branch comparison */}
-          <BranchBars clients={filteredClients} />
+          <BranchBars clients={filteredClients} ownerMode={ownerMode} activeBranch={branch} />
 
           {/* Trend chart */}
           <TrendChart clients={filteredClients} dateFrom={dateFrom} dateTo={dateTo} />
 
           {/* AI daily summary */}
-          <DailySummary ownerMode={ownerMode} />
+          <DailySummary ownerMode={ownerMode} branch={branch} />
         </div>
       )}
     </div>

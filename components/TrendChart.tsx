@@ -1,6 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import type { Client } from "@/lib/types";
+
+type Granularity = "daily" | "weekly" | "monthly";
 
 interface TrendChartProps {
   clients: Client[];
@@ -11,32 +14,62 @@ interface TrendChartProps {
 interface Bucket {
   label: string;
   key: string;
-  isDay: boolean;
+  granularity: Granularity;
 }
 
-function getBuckets(dateFrom: string, dateTo: string): Bucket[] {
+function getWeekMonday(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return d.toISOString().split("T")[0];
+}
+
+function visitMatchesBucket(visitDate: string, bucket: Bucket): boolean {
+  if (bucket.granularity === "daily") return visitDate === bucket.key;
+  if (bucket.granularity === "weekly") return getWeekMonday(visitDate) === bucket.key;
+  return visitDate.startsWith(bucket.key);
+}
+
+function getBuckets(dateFrom: string, dateTo: string, granularity: Granularity): Bucket[] {
   const from = new Date(dateFrom + "T00:00:00");
   const to = new Date(dateTo + "T00:00:00");
-  const diffDays = Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
 
-  if (diffDays <= 31) {
+  if (granularity === "daily") {
     const buckets: Bucket[] = [];
     const d = new Date(from);
-    for (let i = 0; i < diffDays; i++) {
+    while (d <= to) {
       buckets.push({
         label: d.toLocaleDateString("en-CA", { month: "short", day: "numeric" }),
         key: d.toISOString().split("T")[0],
-        isDay: true,
+        granularity: "daily",
       });
       d.setDate(d.getDate() + 1);
     }
     return buckets;
   }
 
-  // Monthly buckets
+  if (granularity === "weekly") {
+    const buckets: Bucket[] = [];
+    const startMonday = new Date(from);
+    const day = startMonday.getDay();
+    startMonday.setDate(startMonday.getDate() + (day === 0 ? -6 : 1 - day));
+    const curr = new Date(startMonday);
+    while (curr <= to) {
+      buckets.push({
+        label: curr.toLocaleDateString("en-CA", { month: "short", day: "numeric" }),
+        key: curr.toISOString().split("T")[0],
+        granularity: "weekly",
+      });
+      curr.setDate(curr.getDate() + 7);
+    }
+    return buckets;
+  }
+
+  // Monthly
   const buckets: Bucket[] = [];
   const start = new Date(from.getFullYear(), from.getMonth(), 1);
   const end = new Date(to.getFullYear(), to.getMonth(), 1);
+  const diffDays = Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
   const multiYear = diffDays > 400;
 
   while (start <= end) {
@@ -47,28 +80,49 @@ function getBuckets(dateFrom: string, dateTo: string): Bucket[] {
         ...(multiYear ? { year: "2-digit" } : {}),
       }),
       key,
-      isDay: false,
+      granularity: "monthly",
     });
     start.setMonth(start.getMonth() + 1);
   }
 
-  // Cap at 24 most recent months
   return buckets.length > 24 ? buckets.slice(-24) : buckets;
 }
 
-function getTrendTitle(dateFrom: string, dateTo: string): string {
+function getDefaultGranularity(dateFrom: string, dateTo: string): Granularity {
   const from = new Date(dateFrom + "T00:00:00");
   const to = new Date(dateTo + "T00:00:00");
   const diffDays = Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
-  if (diffDays === 1) return "Daily trend";
-  if (diffDays <= 31) return `${diffDays}-day trend`;
-  const months = Math.round(diffDays / 30.5);
-  if (months <= 24) return `${months}-month trend`;
-  return "Trend overview";
+  if (diffDays <= 14) return "daily";
+  if (diffDays <= 90) return "weekly";
+  return "monthly";
 }
 
+function getTrendTitle(granularity: Granularity, dateFrom: string, dateTo: string): string {
+  const from = new Date(dateFrom + "T00:00:00");
+  const to = new Date(dateTo + "T00:00:00");
+  const diffDays = Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
+  if (granularity === "daily") return diffDays === 1 ? "Daily trend" : `${diffDays}-day trend`;
+  if (granularity === "weekly") return `${Math.ceil(diffDays / 7)}-week trend`;
+  const months = Math.round(diffDays / 30.5);
+  return months <= 24 ? `${months}-month trend` : "Trend overview";
+}
+
+const GRANULARITIES: { label: string; value: Granularity }[] = [
+  { label: "Daily", value: "daily" },
+  { label: "Weekly", value: "weekly" },
+  { label: "Monthly", value: "monthly" },
+];
+
 export default function TrendChart({ clients, dateFrom, dateTo }: TrendChartProps) {
-  const buckets = getBuckets(dateFrom, dateTo);
+  const [granularity, setGranularity] = useState<Granularity>(() =>
+    getDefaultGranularity(dateFrom, dateTo)
+  );
+
+  useEffect(() => {
+    setGranularity(getDefaultGranularity(dateFrom, dateTo));
+  }, [dateFrom, dateTo]);
+
+  const buckets = getBuckets(dateFrom, dateTo, granularity);
 
   const data = buckets.map((bucket) => {
     let visits = 0;
@@ -77,57 +131,19 @@ export default function TrendChart({ clients, dateFrom, dateTo }: TrendChartProp
 
     for (const client of clients) {
       for (const visit of client.visits ?? []) {
-        const matches = bucket.isDay
-          ? visit.date === bucket.key
-          : visit.date.startsWith(bucket.key);
-        if (matches) {
+        if (visitMatchesBucket(visit.date, bucket)) {
           visits++;
           totalSpend += visit.spend ?? 0;
         }
       }
 
-      // "New client" = client whose earliest visit date falls in this bucket
-      const sortedVisitDates = (client.visits ?? []).map((v) => v.date).sort();
-      const firstVisitDate = sortedVisitDates[0];
-      if (firstVisitDate) {
-        const firstVisitKey = bucket.isDay
-          ? firstVisitDate
-          : firstVisitDate.substring(0, 7);
-        if (firstVisitKey === bucket.key) newClients++;
-      }
+      const sortedDates = (client.visits ?? []).map((v) => v.date).sort();
+      const firstDate = sortedDates[0];
+      if (firstDate && visitMatchesBucket(firstDate, bucket)) newClients++;
     }
 
     return { label: bucket.label, visits, newClients, totalSpend };
   });
-
-  const maxVisits = Math.max(...data.map((d) => d.visits), 1);
-  const maxSpend = Math.max(...data.map((d) => d.totalSpend), 1);
-
-  const svgH = 120;
-  const svgW = 100;
-  const totalW = svgW * data.length;
-
-  // Show at most ~8 axis labels to prevent crowding on any screen size
-  const labelInterval = data.length <= 8 ? 1 : Math.ceil(data.length / 8);
-
-  // Minimum pixel width per bucket so labels stay readable; container scrolls horizontally on mobile
-  const minPxWidth = Math.max(300, data.length * 50);
-
-  const visitPoints = data
-    .map((d, i) => {
-      const x = i * svgW + svgW / 2;
-      const y = svgH - (d.visits / maxVisits) * (svgH - 16) - 4;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  const spendPoints = data
-    .map((d, i) => {
-      const x = i * svgW + svgW / 2;
-      const y = svgH - (d.totalSpend / maxSpend) * (svgH - 16) - 4;
-      return `${x},${y}`;
-    })
-    .join(" ");
 
   if (data.length === 0) {
     return (
@@ -138,30 +154,72 @@ export default function TrendChart({ clients, dateFrom, dateTo }: TrendChartProp
     );
   }
 
+  const maxVisits = Math.max(...data.map((d) => d.visits), 1);
+  const maxSpend = Math.max(...data.map((d) => d.totalSpend), 1);
+
+  const svgH = 120;
+  const svgW = 100;
+  const totalW = svgW * data.length;
+  const labelInterval = data.length <= 8 ? 1 : Math.ceil(data.length / 8);
+  const minPxWidth = Math.max(300, data.length * 50);
+
+  const visitPoints = data
+    .map((d, i) => `${i * svgW + svgW / 2},${svgH - (d.visits / maxVisits) * (svgH - 16) - 4}`)
+    .join(" ");
+
+  const spendPoints = data
+    .map((d, i) => `${i * svgW + svgW / 2},${svgH - (d.totalSpend / maxSpend) * (svgH - 16) - 4}`)
+    .join(" ");
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      {/* Header row */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <p
           className="section-title"
           style={{ borderBottom: "none", paddingBottom: 0, marginBottom: 0 }}
         >
-          {getTrendTitle(dateFrom, dateTo)}
+          {getTrendTitle(granularity, dateFrom, dateTo)}
         </p>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5">
-            <div style={{ width: 16, height: 2, background: "var(--ink)" }} />
-            <span className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>Visits</span>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Granularity toggle */}
+          <div className="flex gap-1">
+            {GRANULARITIES.map((g) => (
+              <button
+                key={g.value}
+                onClick={() => setGranularity(g.value)}
+                className="btn"
+                style={{
+                  fontSize: "0.58rem",
+                  padding: "0.15rem 0.45rem",
+                  background: granularity === g.value ? "var(--ink)" : "transparent",
+                  color: granularity === g.value ? "var(--paper)" : "var(--muted)",
+                  borderColor: granularity === g.value ? "var(--ink)" : "var(--line)",
+                }}
+              >
+                {g.label}
+              </button>
+            ))}
           </div>
-          <div className="flex items-center gap-1.5">
-            <div style={{ width: 16, height: 2, background: "var(--vip)" }} />
-            <span className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>Revenue</span>
+
+          {/* Legend */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <div style={{ width: 14, height: 2, background: "var(--ink)" }} />
+              <span className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>Visits</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div style={{ width: 14, height: 2, background: "var(--vip)" }} />
+              <span className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>Revenue</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div style={{ borderBottom: "1px solid var(--line)", marginBottom: "1rem" }} />
+      <div style={{ borderBottom: "1px solid var(--line)", marginBottom: "0.5rem" }} />
 
-      {/* Scrollable wrapper keeps the SVG readable on mobile */}
+      {/* Scrollable chart */}
       <div style={{ overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
         <svg
           viewBox={`0 0 ${totalW} ${svgH + 20}`}
@@ -171,19 +229,11 @@ export default function TrendChart({ clients, dateFrom, dateTo }: TrendChartProp
           {[0.25, 0.5, 0.75, 1].map((frac) => {
             const y = svgH - frac * (svgH - 16) - 4;
             return (
-              <line
-                key={frac}
-                x1={0}
-                y1={y}
-                x2={totalW}
-                y2={y}
-                stroke="var(--line)"
-                strokeWidth={0.5}
-              />
+              <line key={frac} x1={0} y1={y} x2={totalW} y2={y} stroke="var(--line)" strokeWidth={0.5} />
             );
           })}
 
-          {/* Spend line */}
+          {/* Revenue line */}
           <polyline
             points={spendPoints}
             fill="none"
@@ -204,7 +254,7 @@ export default function TrendChart({ clients, dateFrom, dateTo }: TrendChartProp
             strokeLinecap="round"
           />
 
-          {/* Dots + labels */}
+          {/* Dots, value labels, axis labels, new-client bars */}
           {data.map((d, i) => {
             const x = i * svgW + svgW / 2;
             const visitY = svgH - (d.visits / maxVisits) * (svgH - 16) - 4;
@@ -243,14 +293,7 @@ export default function TrendChart({ clients, dateFrom, dateTo }: TrendChartProp
                 )}
 
                 {d.newClients > 0 && (
-                  <rect
-                    x={x - 6}
-                    y={svgH - 4}
-                    width={12}
-                    height={4}
-                    fill="var(--ink)"
-                    opacity={0.15}
-                  />
+                  <rect x={x - 6} y={svgH - 4} width={12} height={4} fill="var(--ink)" opacity={0.15} />
                 )}
               </g>
             );
@@ -258,7 +301,7 @@ export default function TrendChart({ clients, dateFrom, dateTo }: TrendChartProp
         </svg>
       </div>
 
-      {/* Summary table — only when bucket count is small enough to be readable */}
+      {/* Summary table for small bucket counts */}
       {data.length <= 12 && (
         <div
           className="grid"

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { DailySummaryData } from "@/lib/types";
+import type { DailySummaryData, Branch } from "@/lib/types";
 
 interface DailySummaryProps {
   ownerMode: boolean;
+  branch: Branch | "All";
 }
 
-export default function DailySummary({ ownerMode }: DailySummaryProps) {
+export default function DailySummary({ ownerMode, branch }: DailySummaryProps) {
   const [data, setData] = useState<DailySummaryData | null>(null);
   const [loading, setLoading] = useState(false);
   const [branchOpen, setBranchOpen] = useState(false);
@@ -17,7 +18,11 @@ export default function DailySummary({ ownerMode }: DailySummaryProps) {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/ai/summary", { method: "POST" });
+      const res = await fetch("/api/ai/summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ branch: ownerMode ? "All" : branch }),
+      });
       const json = await res.json();
       if (!res.ok) {
         setError(json.error ?? "Summary generation failed.");
