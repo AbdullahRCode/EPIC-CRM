@@ -2,7 +2,7 @@
 
 import { NextResponse } from "next/server";
 import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_TENANT, BRANCHES } from "@/lib/types";
 
 export async function POST() {
@@ -10,7 +10,7 @@ export async function POST() {
     const today = new Date().toISOString().split("T")[0];
     const sixMonthsAgo = new Date(Date.now() - 180 * 86400000).toISOString().split("T")[0];
 
-    const { data: clients, error: dbError } = await supabase
+    const { data: clients, error: dbError } = await getSupabaseAdmin()
       .from("clients")
       .select(
         "id, name, branch, visits, events, event_date, alterations, alteration_status, special_order, special_order_status, follow_up, updated_at"

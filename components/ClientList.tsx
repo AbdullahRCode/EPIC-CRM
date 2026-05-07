@@ -6,7 +6,6 @@ import { deriveTags } from "@/lib/types";
 import { getClients } from "@/app/actions/clients";
 import ClientModal from "./ClientModal";
 import AISearchPanel from "./AISearchPanel";
-import VoiceCommand from "./VoiceCommand";
 import PhotoIntake from "./PhotoIntake";
 
 const TAG_FILTERS: ClientTag[] = ["VIP", "Returning", "Cold", "Events", "Alterations", "Special Order", "Follow-up"];
@@ -60,7 +59,6 @@ export default function ClientList({ initialBranch }: ClientListProps) {
   const [aiResultIds, setAiResultIds] = useState<string[] | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | undefined>(undefined);
   const [showModal, setShowModal] = useState(false);
-  const [showVoice, setShowVoice] = useState(false);
   const [showPhoto, setShowPhoto] = useState(false);
 
   const loadClients = useCallback(async (b: Branch | "All") => {
@@ -137,27 +135,6 @@ export default function ClientList({ initialBranch }: ClientListProps) {
     setClients((prev) => prev.filter((c) => c.id !== id));
   }
 
-  function handleVoiceApply(action: { type: string; clientId: string; params: Record<string, string> }) {
-    setClients((prev) =>
-      prev.map((c) => {
-        if (c.id !== action.clientId) return c;
-        if (action.type === "update_alteration_status") {
-          return { ...c, alteration_status: action.params.status as Client["alteration_status"], updated_at: new Date().toISOString() };
-        }
-        if (action.type === "update_order_status") {
-          return { ...c, special_order_status: action.params.status as Client["special_order_status"], updated_at: new Date().toISOString() };
-        }
-        if (action.type === "add_follow_up") {
-          return { ...c, follow_up: { needed: true, reason: action.params.reason ?? "" }, updated_at: new Date().toISOString() };
-        }
-        if (action.type === "remove_follow_up") {
-          return { ...c, follow_up: { needed: false }, updated_at: new Date().toISOString() };
-        }
-        return c;
-      })
-    );
-  }
-
   const DATE_RANGES = [
     { label: "Today", value: "today" as DateRange },
     { label: "This week", value: "week" as DateRange },
@@ -190,13 +167,6 @@ export default function ClientList({ initialBranch }: ClientListProps) {
           />
 
           <div className="flex gap-2 ml-auto">
-            <button
-              onClick={() => setShowVoice(true)}
-              className="btn btn-ghost"
-              title="Voice command"
-            >
-              ◎ Voice
-            </button>
             <button
               onClick={() => setShowPhoto(true)}
               className="btn btn-ghost"
@@ -368,14 +338,6 @@ export default function ClientList({ initialBranch }: ClientListProps) {
           onClose={() => setShowModal(false)}
           onSave={handleSave}
           onDelete={handleDelete}
-        />
-      )}
-
-      {showVoice && (
-        <VoiceCommand
-          clients={clients}
-          onApply={handleVoiceApply}
-          onClose={() => setShowVoice(false)}
         />
       )}
 

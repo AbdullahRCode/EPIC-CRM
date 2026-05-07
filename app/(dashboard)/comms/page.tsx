@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Comm } from "@/lib/types";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import { DEFAULT_TENANT } from "@/lib/types";
 import { useBranchOwner } from "@/lib/branch-context";
 
@@ -15,7 +15,7 @@ export default function CommsPage() {
     async function load() {
       setLoading(true);
       try {
-        const { data } = await supabase
+        const { data } = await getSupabase()
           .from("comms")
           .select("*")
           .eq("tenant_id", DEFAULT_TENANT)

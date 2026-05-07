@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getResend } from "@/lib/resend";
 import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_TENANT } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const { clientId, statusType, sentBy } = await req.json();
 
     // Fetch client
-    const { data: client, error } = await supabase
+    const { data: client, error } = await getSupabaseAdmin()
       .from("clients")
       .select("*")
       .eq("id", clientId)
@@ -59,7 +59,7 @@ Write ONLY the email body (no subject line). Tone: warm, professional, luxury. 3
     });
 
     // Log communication
-    await supabase.from("comms").insert({
+    await getSupabaseAdmin().from("comms").insert({
       tenant_id: DEFAULT_TENANT,
       client_id: clientId,
       channel: "email",

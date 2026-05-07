@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_TENANT } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     if (!query?.trim()) return NextResponse.json({ ids: [], interpretation: "" });
 
     // Fetch all clients for context (just the fields needed for search)
-    let dbQuery = supabase
+    let dbQuery = getSupabaseAdmin()
       .from("clients")
       .select("id, name, phone, email, branch, events, event_date, alterations, alteration_status, special_order, special_order_status, follow_up, visits, updated_at")
       .eq("tenant_id", DEFAULT_TENANT);

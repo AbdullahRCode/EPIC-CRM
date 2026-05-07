@@ -90,6 +90,7 @@ export default function ClientModal({
   });
   const [addingVisit, setAddingVisit] = useState(isNew);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [cleaningNote, setCleaningNote] = useState(false);
   const [section, setSection] = useState<"identity" | "visit" | "events" | "alterations" | "order" | "followup" | "measurements">("identity");
@@ -151,6 +152,7 @@ export default function ClientModal({
   async function handleSave() {
     if (!form.name.trim() || !form.phone.trim()) return;
     setSaving(true);
+    setSaveError("");
     try {
       // If the user left the visit form open with data, commit it before saving
       let finalForm = { ...form };
@@ -189,6 +191,10 @@ export default function ClientModal({
         saved = await updateClient(initialClient!.id, finalForm);
       }
       onSave(saved);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Save failed";
+      setSaveError(msg);
+      console.error("[ClientModal] Save error:", err);
     } finally {
       setSaving(false);
     }
@@ -754,15 +760,22 @@ export default function ClientModal({
               {deleting ? "Deleting..." : "Delete"}
             </button>
           )}
-          <div className="flex gap-2 ml-auto">
-            <button onClick={onClose} className="btn btn-ghost">Cancel</button>
-            <button
-              onClick={handleSave}
-              className="btn btn-primary"
-              disabled={saving || !form.name.trim() || !form.phone.trim()}
-            >
-              {saving ? "Saving..." : isNew ? "Create client" : "Save changes"}
-            </button>
+          <div className="flex flex-col items-end gap-2 ml-auto">
+            {saveError && (
+              <p className="label" style={{ color: "var(--danger)", fontSize: "0.6rem", maxWidth: "18rem", textAlign: "right" }}>
+                {saveError}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button onClick={onClose} className="btn btn-ghost">Cancel</button>
+              <button
+                onClick={handleSave}
+                className="btn btn-primary"
+                disabled={saving || !form.name.trim() || !form.phone.trim()}
+              >
+                {saving ? "Saving..." : isNew ? "Create client" : "Save changes"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
