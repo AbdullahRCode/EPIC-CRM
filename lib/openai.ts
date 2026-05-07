@@ -11,8 +11,3 @@ export function getOpenAI(): OpenAI {
   return _client;
 }
 
-export const openai = new Proxy({} as OpenAI, {
-  get(_t, prop) {
-    return (getOpenAI() as unknown as Record<string | symbol, unknown>)[prop];
-  },
-});

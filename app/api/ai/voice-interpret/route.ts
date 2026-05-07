@@ -1,7 +1,7 @@
 ﻿export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { openai } from "@/lib/openai";
+import { getOpenAI } from "@/lib/openai";
 import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 
 export async function POST(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Transcribe with Whisper
-    const transcription = await openai.audio.transcriptions.create({
+    const transcription = await getOpenAI().audio.transcriptions.create({
       file: audioFile,
       model: "whisper-1",
       language: "en",
