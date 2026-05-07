@@ -6,6 +6,9 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_TENANT, BRANCHES } from "@/lib/types";
 
 export async function POST() {
+  const keyPreview = process.env.ANTHROPIC_API_KEY?.slice(0, 10) ?? "NOT SET";
+  console.log("[summary] ANTHROPIC_API_KEY prefix:", keyPreview);
+
   try {
     const today = new Date().toISOString().split("T")[0];
     const sixMonthsAgo = new Date(Date.now() - 180 * 86400000).toISOString().split("T")[0];

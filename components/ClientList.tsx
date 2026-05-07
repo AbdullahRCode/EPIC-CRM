@@ -206,7 +206,7 @@ export default function ClientList({ initialBranch }: ClientListProps) {
 
       {/* Count / stats bar */}
       <div
-        className="px-6 py-2 flex items-center justify-between"
+        className="px-6 py-2 flex flex-wrap items-center justify-between gap-y-1"
         style={{ borderBottom: "1px solid var(--line)" }}
       >
         <span className="label" style={{ color: "var(--muted)" }}>

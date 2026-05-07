@@ -20,7 +20,6 @@ function getBuckets(dateFrom: string, dateTo: string): Bucket[] {
   const diffDays = Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
 
   if (diffDays <= 31) {
-    // Daily buckets
     const buckets: Bucket[] = [];
     const d = new Date(from);
     for (let i = 0; i < diffDays; i++) {
@@ -53,7 +52,7 @@ function getBuckets(dateFrom: string, dateTo: string): Bucket[] {
     start.setMonth(start.getMonth() + 1);
   }
 
-  // Cap at 24 most recent months to prevent chart overcrowding
+  // Cap at 24 most recent months
   return buckets.length > 24 ? buckets.slice(-24) : buckets;
 }
 
@@ -86,10 +85,16 @@ export default function TrendChart({ clients, dateFrom, dateTo }: TrendChartProp
           totalSpend += visit.spend ?? 0;
         }
       }
-      const createdKey = bucket.isDay
-        ? client.created_at.split("T")[0]
-        : client.created_at.substring(0, 7);
-      if (createdKey === bucket.key) newClients++;
+
+      // "New client" = client whose earliest visit date falls in this bucket
+      const sortedVisitDates = (client.visits ?? []).map((v) => v.date).sort();
+      const firstVisitDate = sortedVisitDates[0];
+      if (firstVisitDate) {
+        const firstVisitKey = bucket.isDay
+          ? firstVisitDate
+          : firstVisitDate.substring(0, 7);
+        if (firstVisitKey === bucket.key) newClients++;
+      }
     }
 
     return { label: bucket.label, visits, newClients, totalSpend };
@@ -101,6 +106,12 @@ export default function TrendChart({ clients, dateFrom, dateTo }: TrendChartProp
   const svgH = 120;
   const svgW = 100;
   const totalW = svgW * data.length;
+
+  // Show at most ~8 axis labels to prevent crowding on any screen size
+  const labelInterval = data.length <= 8 ? 1 : Math.ceil(data.length / 8);
+
+  // Minimum pixel width per bucket so labels stay readable; container scrolls horizontally on mobile
+  const minPxWidth = Math.max(300, data.length * 50);
 
   const visitPoints = data
     .map((d, i) => {
@@ -117,9 +128,6 @@ export default function TrendChart({ clients, dateFrom, dateTo }: TrendChartProp
       return `${x},${y}`;
     })
     .join(" ");
-
-  // Show at most ~12 axis labels to prevent crowding
-  const labelInterval = Math.ceil(data.length / 12);
 
   if (data.length === 0) {
     return (
@@ -142,130 +150,123 @@ export default function TrendChart({ clients, dateFrom, dateTo }: TrendChartProp
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
             <div style={{ width: 16, height: 2, background: "var(--ink)" }} />
-            <span className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>
-              Visits
-            </span>
+            <span className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>Visits</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div style={{ width: 16, height: 2, background: "var(--vip)" }} />
-            <span className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>
-              Revenue
-            </span>
+            <span className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>Revenue</span>
           </div>
         </div>
       </div>
 
       <div style={{ borderBottom: "1px solid var(--line)", marginBottom: "1rem" }} />
 
-      <svg
-        viewBox={`0 0 ${totalW} ${svgH + 20}`}
-        style={{ width: "100%", overflow: "visible" }}
-      >
-        {/* Grid lines */}
-        {[0.25, 0.5, 0.75, 1].map((frac) => {
-          const y = svgH - frac * (svgH - 16) - 4;
-          return (
-            <line
-              key={frac}
-              x1={0}
-              y1={y}
-              x2={totalW}
-              y2={y}
-              stroke="var(--line)"
-              strokeWidth={0.5}
-            />
-          );
-        })}
+      {/* Scrollable wrapper keeps the SVG readable on mobile */}
+      <div style={{ overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+        <svg
+          viewBox={`0 0 ${totalW} ${svgH + 20}`}
+          style={{ display: "block", width: "100%", minWidth: `${minPxWidth}px`, overflow: "visible" }}
+        >
+          {/* Grid lines */}
+          {[0.25, 0.5, 0.75, 1].map((frac) => {
+            const y = svgH - frac * (svgH - 16) - 4;
+            return (
+              <line
+                key={frac}
+                x1={0}
+                y1={y}
+                x2={totalW}
+                y2={y}
+                stroke="var(--line)"
+                strokeWidth={0.5}
+              />
+            );
+          })}
 
-        {/* Spend line */}
-        <polyline
-          points={spendPoints}
-          fill="none"
-          stroke="var(--vip)"
-          strokeWidth={1.5}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          opacity={0.7}
-        />
+          {/* Spend line */}
+          <polyline
+            points={spendPoints}
+            fill="none"
+            stroke="var(--vip)"
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            opacity={0.7}
+          />
 
-        {/* Visit line */}
-        <polyline
-          points={visitPoints}
-          fill="none"
-          stroke="var(--ink)"
-          strokeWidth={2}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
+          {/* Visit line */}
+          <polyline
+            points={visitPoints}
+            fill="none"
+            stroke="var(--ink)"
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
 
-        {/* Dots + labels */}
-        {data.map((d, i) => {
-          const x = i * svgW + svgW / 2;
-          const visitY = svgH - (d.visits / maxVisits) * (svgH - 16) - 4;
-          const showLabel = i % labelInterval === 0 || i === data.length - 1;
+          {/* Dots + labels */}
+          {data.map((d, i) => {
+            const x = i * svgW + svgW / 2;
+            const visitY = svgH - (d.visits / maxVisits) * (svgH - 16) - 4;
+            const showLabel = i % labelInterval === 0 || i === data.length - 1;
 
-          return (
-            <g key={i}>
-              <circle cx={x} cy={visitY} r={3} fill="var(--ink)" />
+            return (
+              <g key={i}>
+                <circle cx={x} cy={visitY} r={3} fill="var(--ink)" />
 
-              {d.visits > 0 && (
-                <text
-                  x={x}
-                  y={visitY - 7}
-                  textAnchor="middle"
-                  style={{
-                    fontSize: 9,
-                    fontFamily: "Outfit, sans-serif",
-                    fill: "var(--ink)",
-                  }}
-                >
-                  {d.visits}
-                </text>
-              )}
+                {d.visits > 0 && (
+                  <text
+                    x={x}
+                    y={visitY - 7}
+                    textAnchor="middle"
+                    style={{ fontSize: 9, fontFamily: "Outfit, sans-serif", fill: "var(--ink)" }}
+                  >
+                    {d.visits}
+                  </text>
+                )}
 
-              {showLabel && (
-                <text
-                  x={x}
-                  y={svgH + 14}
-                  textAnchor="middle"
-                  style={{
-                    fontSize: 9,
-                    fontFamily: "Outfit, sans-serif",
-                    fill: "var(--muted)",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {d.label}
-                </text>
-              )}
+                {showLabel && (
+                  <text
+                    x={x}
+                    y={svgH + 14}
+                    textAnchor="middle"
+                    style={{
+                      fontSize: 9,
+                      fontFamily: "Outfit, sans-serif",
+                      fill: "var(--muted)",
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {d.label}
+                  </text>
+                )}
 
-              {d.newClients > 0 && (
-                <rect
-                  x={x - 6}
-                  y={svgH - 4}
-                  width={12}
-                  height={4}
-                  fill="var(--ink)"
-                  opacity={0.15}
-                />
-              )}
-            </g>
-          );
-        })}
-      </svg>
+                {d.newClients > 0 && (
+                  <rect
+                    x={x - 6}
+                    y={svgH - 4}
+                    width={12}
+                    height={4}
+                    fill="var(--ink)"
+                    opacity={0.15}
+                  />
+                )}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
 
-      {/* Summary table — only when bucket count is manageable */}
+      {/* Summary table — only when bucket count is small enough to be readable */}
       {data.length <= 12 && (
         <div
           className="grid"
-          style={{ gridTemplateColumns: `repeat(${data.length}, 1fr)`, gap: "0.5rem" }}
+          style={{ gridTemplateColumns: `repeat(${data.length}, minmax(0, 1fr))`, gap: "0.25rem" }}
         >
           {data.map((d, i) => (
             <div key={i} className="flex flex-col gap-0.5 text-center">
-              <span className="label" style={{ color: "var(--ink)", fontSize: "0.6rem" }}>
-                {d.label}
-              </span>
+              <span className="label" style={{ color: "var(--ink)", fontSize: "0.6rem" }}>{d.label}</span>
               {d.newClients > 0 && (
                 <span className="label" style={{ color: "var(--muted)", fontSize: "0.5rem" }}>
                   +{d.newClients} new

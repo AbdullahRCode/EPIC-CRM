@@ -47,11 +47,11 @@ export default function BranchBars({ clients }: BranchBarsProps) {
 
           return (
             <div key={stat.branch} className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between flex-wrap gap-1">
                 <span className="label" style={{ color: "var(--ink)", letterSpacing: "0.15em" }}>
                   {stat.branch}
                 </span>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 flex-wrap">
                   <span className="label" style={{ color: "var(--muted)" }}>
                     {stat.total} clients
                   </span>

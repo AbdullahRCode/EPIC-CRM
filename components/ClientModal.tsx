@@ -239,11 +239,10 @@ export default function ClientModal({
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div
-        className="slide-right h-full overflow-y-auto flex flex-col"
+        className="slide-right h-full overflow-y-auto flex flex-col sm:border-l sm:border-l-line"
         style={{
           width: "min(520px, 100vw)",
           background: "var(--paper)",
-          borderLeft: "1px solid var(--line)",
         }}
       >
         {/* Modal header */}
@@ -748,29 +747,29 @@ export default function ClientModal({
 
         {/* Footer */}
         <div
-          className="sticky bottom-0 flex items-center justify-between px-6 py-4 gap-3"
+          className="sticky bottom-0 px-6 py-4"
           style={{ background: "var(--paper)", borderTop: "1px solid var(--line)" }}
         >
-          {!isNew && (
-            <button
-              onClick={handleDelete}
-              className="btn btn-danger"
-              disabled={deleting}
-            >
-              {deleting ? "Deleting..." : "Delete"}
-            </button>
+          {saveError && (
+            <p className="label mb-2" style={{ color: "var(--danger)", fontSize: "0.6rem" }}>
+              {saveError}
+            </p>
           )}
-          <div className="flex flex-col items-end gap-2 ml-auto">
-            {saveError && (
-              <p className="label" style={{ color: "var(--danger)", fontSize: "0.6rem", maxWidth: "18rem", textAlign: "right" }}>
-                {saveError}
-              </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            {!isNew && (
+              <button
+                onClick={handleDelete}
+                className="btn btn-danger w-full sm:w-auto"
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
             )}
-            <div className="flex gap-2">
-              <button onClick={onClose} className="btn btn-ghost">Cancel</button>
+            <div className="flex gap-2 sm:ml-auto">
+              <button onClick={onClose} className="btn btn-ghost flex-1 sm:flex-none">Cancel</button>
               <button
                 onClick={handleSave}
-                className="btn btn-primary"
+                className="btn btn-primary flex-1 sm:flex-none"
                 disabled={saving || !form.name.trim() || !form.phone.trim()}
               >
                 {saving ? "Saving..." : isNew ? "Create client" : "Save changes"}
