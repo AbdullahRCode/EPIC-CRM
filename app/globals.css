@@ -1,0 +1,262 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design tokens ─────────────────────────────────────────────────── */
+:root {
+  --ink: #0a0a0a;
+  --paper: #fafaf7;
+  --paper-2: #f3f2ed;
+  --line: #e6e4dd;
+  --muted: #6b6b66;
+  --good: #1f5a32;
+  --warn: #8a5a1f;
+  --danger: #8a1f1f;
+  --vip: #d4ad53;
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-outfit), system-ui, sans-serif;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: var(--paper);
+  min-height: 100vh;
+}
+
+/* ─── Typography ─────────────────────────────────────────────────────── */
+
+/* Serif italic for editorial headings */
+.font-serif {
+  font-family: var(--font-cormorant), Georgia, serif;
+}
+
+/* Tiny uppercase tracked label — used everywhere for field names, nav, tags */
+.label {
+  font-family: var(--font-outfit), system-ui, sans-serif;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.label-wide {
+  letter-spacing: 0.3em;
+}
+
+/* ─── Inputs ─────────────────────────────────────────────────────────── */
+
+/* Border-bottom only — no box, no background */
+.input-line {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0.5rem 0;
+  width: 100%;
+  font-family: var(--font-outfit), system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input-line:focus {
+  border-bottom-color: var(--ink);
+}
+
+.input-line::placeholder {
+  color: var(--muted);
+  font-weight: 300;
+}
+
+/* Select chevron */
+select.input-line {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b6b66' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.25rem center;
+  padding-right: 1.5rem;
+  cursor: pointer;
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  font-family: var(--font-outfit), system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.btn-primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.btn-primary:hover {
+  background: #2a2a2a;
+}
+
+.btn-ghost {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.btn-ghost:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.btn-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+  color: var(--paper);
+}
+
+/* ─── Tags ───────────────────────────────────────────────────────────── */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+}
+
+.tag-vip            { color: var(--vip);    border-color: var(--vip);    background: #d4ad5310; }
+.tag-returning      { color: var(--ink);    border-color: var(--line); }
+.tag-cold           { color: var(--muted);  border-color: var(--line); }
+.tag-events         { color: var(--warn);   border-color: var(--warn);   background: #8a5a1f10; }
+.tag-alterations    { color: var(--ink);    border-color: var(--ink); }
+.tag-special-order  { color: var(--good);   border-color: var(--good);   background: #1f5a3210; }
+.tag-follow-up      { color: var(--danger); border-color: var(--danger); background: #8a1f1f10; }
+
+/* ─── Avatar ─────────────────────────────────────────────────────────── */
+
+.avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-outfit), system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+  text-transform: uppercase;
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* Gold dot on VIP avatar */
+.avatar-vip::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vip);
+  border: 1.5px solid var(--paper);
+}
+
+/* ─── Section title ──────────────────────────────────────────────────── */
+
+.section-title {
+  font-family: var(--font-cormorant), Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--ink);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1.25rem;
+}
+
+/* ─── Modal ──────────────────────────────────────────────────────────── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+/* ─── Status pipeline ────────────────────────────────────────────────── */
+
+.pipeline-segment {
+  height: 3px;
+  flex: 1;
+  background: var(--line);
+  position: relative;
+  transition: background 0.2s;
+}
+
+.pipeline-segment.active { background: var(--ink); }
+.pipeline-segment.good   { background: var(--good); }
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar        { width: 4px; height: 4px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--line); }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ─── Animations ─────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in { animation: fadeIn 0.2s ease; }
+
+@keyframes slideRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.slide-right { animation: slideRight 0.25s ease; }
