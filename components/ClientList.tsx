@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Client, Branch, ClientTag } from "@/lib/types";
 import { deriveTags } from "@/lib/types";
 import { getClients } from "@/app/actions/clients";
 import ClientModal from "./ClientModal";
 import AISearchPanel from "./AISearchPanel";
 import PhotoIntake from "./PhotoIntake";
-
-const TAG_FILTERS: ClientTag[] = ["VIP", "Returning", "Cold", "Events", "Alterations", "Special Order", "Follow-up"];
 
 type DateRange = "today" | "week" | "month" | "all";
 
@@ -41,13 +39,29 @@ function inDateRange(client: Client, range: DateRange): boolean {
   if (range === "all") return true;
   const last = lastVisitDate(client);
   if (!last) return false;
-  const now = Date.now();
-  const diff = (now - last.getTime()) / 86400000;
+  const diff = (Date.now() - last.getTime()) / 86400000;
   if (range === "today") return diff < 1;
   if (range === "week") return diff <= 7;
   if (range === "month") return diff <= 30;
   return true;
 }
+
+const TAG_OPTIONS: { label: string; value: ClientTag }[] = [
+  { label: "VIP ($1000+ spend)", value: "VIP" },
+  { label: "Returning (2+ visits)", value: "Returning" },
+  { label: "Alterations (active)", value: "Alterations" },
+  { label: "Follow-up needed", value: "Follow-up" },
+  { label: "Cold (90+ days)", value: "Cold" },
+  { label: "Special Order (active)", value: "Special Order" },
+  { label: "Events upcoming", value: "Events" },
+];
+
+const DATE_RANGES = [
+  { label: "Today", value: "today" as DateRange },
+  { label: "This week", value: "week" as DateRange },
+  { label: "This month", value: "month" as DateRange },
+  { label: "All time", value: "all" as DateRange },
+];
 
 export default function ClientList({ initialBranch }: ClientListProps) {
   const [clients, setClients] = useState<Client[]>([]);
@@ -60,6 +74,7 @@ export default function ClientList({ initialBranch }: ClientListProps) {
   const [selectedClient, setSelectedClient] = useState<Client | undefined>(undefined);
   const [showModal, setShowModal] = useState(false);
   const [showPhoto, setShowPhoto] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const loadClients = useCallback(async (b: Branch | "All") => {
     setLoading(true);
@@ -75,7 +90,6 @@ export default function ClientList({ initialBranch }: ClientListProps) {
     loadClients(branch);
   }, [branch, loadClients]);
 
-  // Sync branch from header (listen to storage event)
   useEffect(() => {
     function handleStorage(e: StorageEvent) {
       if (e.key === "epic-branch" && e.newValue) {
@@ -88,7 +102,6 @@ export default function ClientList({ initialBranch }: ClientListProps) {
 
   const filtered = clients.filter((c) => {
     if (aiResultIds !== null) return aiResultIds.includes(c.id);
-
     const tags = deriveTags(c);
     if (tagFilter && !tags.includes(tagFilter)) return false;
     if (!inDateRange(c, dateRange)) return false;
@@ -103,7 +116,6 @@ export default function ClientList({ initialBranch }: ClientListProps) {
     return true;
   });
 
-  // Keep AI result order
   const sorted = aiResultIds
     ? filtered.sort((a, b) => aiResultIds.indexOf(a.id) - aiResultIds.indexOf(b.id))
     : filtered;
@@ -135,38 +147,68 @@ export default function ClientList({ initialBranch }: ClientListProps) {
     setClients((prev) => prev.filter((c) => c.id !== id));
   }
 
-  const DATE_RANGES = [
-    { label: "Today", value: "today" as DateRange },
-    { label: "This week", value: "week" as DateRange },
-    { label: "This month", value: "month" as DateRange },
-    { label: "All time", value: "all" as DateRange },
-  ];
+  // Upcoming events (next 90 days) from loaded client data
+  const upcomingEvents = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const in90 = new Date(now.getTime() + 90 * 86400000);
+    return clients
+      .filter((c) => c.event_date && c.events.length > 0)
+      .map((c) => ({
+        client: c,
+        eventDate: new Date(c.event_date!),
+        eventType: c.events[0],
+      }))
+      .filter((e) => e.eventDate >= now && e.eventDate <= in90)
+      .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime())
+      .slice(0, 5);
+  }, [clients]);
 
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
       <div
-        className="px-6 py-4 flex flex-col gap-4"
+        className="px-4 sm:px-6 py-4 flex flex-col gap-3"
         style={{ borderBottom: "1px solid var(--line)" }}
       >
         {/* AI search */}
         <AISearchPanel
           branch={branch}
+          clients={clients}
           onResults={(ids) => setAiResultIds(ids)}
           onClear={() => setAiResultIds(null)}
+          onFilterChange={(f) => setTagFilter(f)}
         />
 
-        {/* Text search + actions */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <input
-            className="input-line flex-1"
-            style={{ minWidth: "8rem", maxWidth: "16rem" }}
-            placeholder="Name, phone, email..."
-            value={textSearch}
-            onChange={(e) => setTextSearch(e.target.value)}
-          />
+        {/* Text search + filter dropdown + action buttons */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <div className="flex gap-2 flex-1 min-w-0">
+            <input
+              className="input-line flex-1"
+              style={{ minWidth: 0 }}
+              placeholder="Name, phone, email..."
+              value={textSearch}
+              onChange={(e) => setTextSearch(e.target.value)}
+            />
+            <select
+              className="input-line flex-shrink-0"
+              style={{ minWidth: "8rem", maxWidth: "12rem", fontSize: "0.75rem" }}
+              value={tagFilter ?? ""}
+              onChange={(e) =>
+                setTagFilter(e.target.value ? (e.target.value as ClientTag) : null)
+              }
+              disabled={aiResultIds !== null}
+            >
+              <option value="">All clients</option>
+              {TAG_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <div className="flex gap-2 ml-auto">
+          <div className="flex gap-2 flex-shrink-0">
             <button
               onClick={() => setShowPhoto(true)}
               className="btn btn-ghost"
@@ -179,42 +221,20 @@ export default function ClientList({ initialBranch }: ClientListProps) {
             </button>
           </div>
         </div>
-
-        {/* Tag filters */}
-        <div className="flex flex-wrap gap-1.5">
-          {TAG_FILTERS.map((tag) => {
-            const active = tagFilter === tag;
-            const cls = `tag tag-${tag.toLowerCase().replace(/ /g, "-")}`;
-            return (
-              <button
-                key={tag}
-                onClick={() => setTagFilter(active ? null : tag)}
-                className={cls}
-                style={{
-                  cursor: "pointer",
-                  opacity: active ? 1 : 0.5,
-                  background: active ? undefined : "transparent",
-                  border: "1px solid currentColor",
-                }}
-              >
-                {tag}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
-      {/* Count / stats bar */}
+      {/* Stats bar */}
       <div
-        className="px-6 py-2 flex flex-wrap items-center justify-between gap-y-1"
+        className="px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-y-1"
         style={{ borderBottom: "1px solid var(--line)" }}
       >
         <span className="label" style={{ color: "var(--muted)" }}>
-          {loading ? "Loading..." : (
+          {loading ? (
+            "Loading..."
+          ) : (
             <>
               {sorted.length} client{sorted.length !== 1 ? "s" : ""}
-              {" · "}
-              ${sorted.reduce((s, c) => s + totalSpend(c), 0).toLocaleString()} revenue
+              {" · "}${sorted.reduce((s, c) => s + totalSpend(c), 0).toLocaleString()} revenue
               {" · "}
               {sorted.filter((c) => deriveTags(c).includes("VIP")).length} VIP
               {aiResultIds !== null && " — AI search active"}
@@ -245,10 +265,15 @@ export default function ClientList({ initialBranch }: ClientListProps) {
           </div>
         ) : sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <p className="font-serif" style={{ fontSize: "1.1rem", fontStyle: "italic", color: "var(--muted)" }}>
+            <p
+              className="font-serif"
+              style={{ fontSize: "1.1rem", fontStyle: "italic", color: "var(--muted)" }}
+            >
               No entries found
             </p>
-            <button onClick={openNew} className="btn btn-primary">+ New entry</button>
+            <button onClick={openNew} className="btn btn-primary">
+              + New entry
+            </button>
           </div>
         ) : (
           <div>
@@ -264,10 +289,12 @@ export default function ClientList({ initialBranch }: ClientListProps) {
               return (
                 <div
                   key={client.id}
-                  className="flex items-center gap-4 px-6 py-4 cursor-pointer transition-colors"
+                  className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-4 cursor-pointer transition-colors"
                   style={{ borderBottom: "1px solid var(--line)" }}
                   onClick={() => openEdit(client)}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--paper-2)")}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "var(--paper-2)")
+                  }
                   onMouseLeave={(e) => (e.currentTarget.style.background = "")}
                 >
                   {/* Avatar */}
@@ -278,54 +305,162 @@ export default function ClientList({ initialBranch }: ClientListProps) {
                   {/* Info */}
                   <div className="flex flex-col gap-1 flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span style={{ fontSize: "0.9rem", fontWeight: 500 }}>{client.name}</span>
+                      <span
+                        className="truncate"
+                        style={{ fontSize: "0.9rem", fontWeight: 500, maxWidth: "12rem" }}
+                      >
+                        {client.name}
+                      </span>
                       <div className="flex gap-1 flex-wrap">
                         {tags.slice(0, 3).map((tag) => (
-                          <span key={tag} className={`tag tag-${tag.toLowerCase().replace(/ /g, "-")}`}>
+                          <span
+                            key={tag}
+                            className={`tag tag-${tag.toLowerCase().replace(/ /g, "-")}`}
+                          >
                             {tag}
                           </span>
                         ))}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="label" style={{ color: "var(--muted)" }}>{client.branch}</span>
-                      <span className="label" style={{ color: "var(--muted)" }}>Last: {lastVisitStr}</span>
+                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                      <span
+                        className="label hidden sm:block"
+                        style={{ color: "var(--muted)" }}
+                      >
+                        {client.branch}
+                      </span>
+                      <span className="label" style={{ color: "var(--muted)" }}>
+                        {lastVisitStr}
+                      </span>
                     </div>
                   </div>
 
                   {/* Right side */}
-                  <div className="flex flex-col items-end gap-1">
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     {spend > 0 && (
-                      <span className="label" style={{ color: isVip ? "var(--vip)" : "var(--ink)" }}>
+                      <span
+                        className="label"
+                        style={{ color: isVip ? "var(--vip)" : "var(--ink)" }}
+                      >
                         ${spend.toLocaleString()}
                       </span>
                     )}
-                    {client.alteration_status && client.alteration_status !== "Picked up" && (
-                      <span
-                        className="label"
-                        style={{
-                          color: client.alteration_status === "Ready" ? "var(--good)" : "var(--muted)",
-                          fontSize: "0.55rem",
-                        }}
-                      >
-                        Alt: {client.alteration_status}
-                      </span>
-                    )}
-                    {client.special_order_status && client.special_order_status !== "Picked up" && (
-                      <span
-                        className="label"
-                        style={{
-                          color: client.special_order_status === "Arrived" ? "var(--good)" : "var(--muted)",
-                          fontSize: "0.55rem",
-                        }}
-                      >
-                        Order: {client.special_order_status}
-                      </span>
-                    )}
+                    {client.alteration_status &&
+                      client.alteration_status !== "Picked up" && (
+                        <span
+                          className="label"
+                          style={{
+                            color:
+                              client.alteration_status === "Ready"
+                                ? "var(--good)"
+                                : "var(--muted)",
+                            fontSize: "0.55rem",
+                          }}
+                        >
+                          Alt: {client.alteration_status}
+                        </span>
+                      )}
+                    {client.special_order_status &&
+                      client.special_order_status !== "Picked up" && (
+                        <span
+                          className="label"
+                          style={{
+                            color:
+                              client.special_order_status === "Arrived"
+                                ? "var(--good)"
+                                : "var(--muted)",
+                            fontSize: "0.55rem",
+                          }}
+                        >
+                          Order: {client.special_order_status}
+                        </span>
+                      )}
                   </div>
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Calendar strip — upcoming events */}
+        {!loading && (
+          <div style={{ borderTop: "1px solid var(--line)" }}>
+            <button
+              onClick={() => setCalendarOpen((o) => !o)}
+              className="flex items-center gap-2 w-full px-4 sm:px-6 py-3"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <span className="label" style={{ color: "var(--muted)" }}>
+                {calendarOpen ? "▾" : "▸"} Upcoming Events
+              </span>
+              {upcomingEvents.length > 0 && (
+                <span
+                  className="label"
+                  style={{
+                    color: "var(--warn)",
+                    fontSize: "0.55rem",
+                    marginLeft: "auto",
+                  }}
+                >
+                  {upcomingEvents.length} in next 90 days
+                </span>
+              )}
+            </button>
+
+            {calendarOpen && (
+              <div className="px-4 sm:px-6 pb-6">
+                <p
+                  className="font-serif mb-3"
+                  style={{ fontSize: "1rem", fontStyle: "italic", color: "var(--ink)" }}
+                >
+                  Upcoming Events
+                </p>
+                {upcomingEvents.length === 0 ? (
+                  <p className="label" style={{ color: "var(--muted)" }}>
+                    No upcoming events in the next 3 months
+                  </p>
+                ) : (
+                  <div className="flex flex-col">
+                    {upcomingEvents.map(({ client, eventDate, eventType }) => (
+                      <div
+                        key={client.id}
+                        className="flex items-center justify-between py-3 cursor-pointer"
+                        style={{ borderBottom: "1px solid var(--line)" }}
+                        onClick={() => openEdit(client)}
+                      >
+                        <div className="flex flex-col gap-0.5">
+                          <span style={{ fontSize: "0.88rem", fontWeight: 500 }}>
+                            {client.name}
+                          </span>
+                          <span className="label" style={{ color: "var(--warn)" }}>
+                            {eventType}
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className="label" style={{ color: "var(--ink)" }}>
+                            {eventDate.toLocaleDateString("en-CA", {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                          <span
+                            className="label hidden sm:block"
+                            style={{ color: "var(--muted)", fontSize: "0.55rem" }}
+                          >
+                            {client.branch}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

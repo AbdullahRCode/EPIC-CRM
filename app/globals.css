@@ -260,3 +260,58 @@ select.input-line {
 }
 
 .slide-right { animation: slideRight 0.25s ease; }
+
+/* ─── Print / PDF export ─────────────────────────────────────────────── */
+
+@media print {
+  header,
+  nav,
+  .no-print,
+  .modal-overlay {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 12px;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* Single-column layout for insights */
+  .insights-print-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2rem !important;
+    padding: 1.5rem !important;
+    max-width: 100% !important;
+  }
+
+  /* Hide date pickers and export button */
+  .insights-controls,
+  .insights-export-btn {
+    display: none !important;
+  }
+
+  /* Stats grid: 4 columns max in print */
+  .insights-stats-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+
+  /* Charts: full width in print */
+  .trend-chart-container,
+  .branch-bars-container,
+  .donut-chart-container {
+    width: 100% !important;
+    overflow: visible !important;
+    break-inside: avoid;
+  }
+
+  /* Force overflow visible for charts */
+  * {
+    overflow: visible !important;
+  }
+}

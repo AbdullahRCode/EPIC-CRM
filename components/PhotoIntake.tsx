@@ -1,20 +1,38 @@
 "use client";
 
 import { useState, useRef } from "react";
-import type { Branch, PhotoExtractEntry } from "@/lib/types";
+import type { Branch, AlterationItem, AlterationStatus } from "@/lib/types";
 import { BRANCHES } from "@/lib/types";
 import { createClient } from "@/app/actions/clients";
-import type { Client } from "@/lib/types";
+import type { Client, Visit } from "@/lib/types";
+
+interface PhotoExtractResult {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  branch?: string | null;
+  visit_date?: string | null;
+  employee?: string | null;
+  purchase_item?: string | null;
+  amount_paid?: number | null;
+  alteration_needed?: boolean;
+  alteration_details?: string | null;
+  alteration_date_promised?: string | null;
+  fit_notes?: string | null;
+  remarks?: string | null;
+  uncertain?: boolean;
+  raw_text?: string;
+}
+
+interface EntryEdit extends PhotoExtractResult {
+  include: boolean;
+  branch: Branch;
+}
 
 interface PhotoIntakeProps {
   onImport: (clients: Client[]) => void;
   onClose: () => void;
   defaultBranch?: Branch;
-}
-
-interface EntryEdit extends PhotoExtractEntry {
-  include: boolean;
-  branch: Branch;
 }
 
 export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoIntakeProps) {
@@ -36,7 +54,7 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
 
       if (data.error) throw new Error(data.error);
 
-      const editable: EntryEdit[] = (data.entries ?? []).map((e: PhotoExtractEntry) => ({
+      const editable: EntryEdit[] = (data.entries ?? []).map((e: PhotoExtractResult) => ({
         ...e,
         include: true,
         branch: (e.branch as Branch) ?? defaultBranch ?? "Surrey - Guildford",
@@ -70,24 +88,40 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
     try {
       const created: Client[] = [];
       for (const entry of toImport) {
+        const visit: Visit = {
+          id: crypto.randomUUID(),
+          date: entry.visit_date ?? new Date().toISOString().split("T")[0],
+          reason: "Walk-in (purchased)",
+          items: entry.purchase_item ?? "",
+          spend: entry.amount_paid ?? undefined,
+          staff: entry.employee ?? "",
+          notes: entry.remarks ?? "",
+        };
+
         const client = await createClient({
           name: entry.name,
           phone: entry.phone ?? "",
           email: entry.email ?? "",
           branch: entry.branch,
           events: [],
-          alterations: [],
-          follow_up: { needed: entry.uncertain ?? false, reason: entry.uncertain ? "Flagged from photo intake — verify details" : "" },
-          measurements: {},
-          visits: entry.notes
-            ? [
-                {
-                  id: crypto.randomUUID(),
-                  date: new Date().toISOString().split("T")[0],
-                  reason: "Walk-in (purchased)",
-                  notes: entry.notes,
-                },
-              ]
+          event_date: undefined,
+          event_note: entry.alteration_date_promised
+            ? `Alt ready: ${entry.alteration_date_promised}`
+            : "",
+          alterations: entry.alteration_needed ? (["Other"] as AlterationItem[]) : [],
+          alteration_note: entry.alteration_details ?? "",
+          alteration_status: entry.alteration_needed
+            ? ("Received" as AlterationStatus)
+            : undefined,
+          special_order: "",
+          special_order_status: undefined,
+          follow_up: {
+            needed: entry.uncertain ?? false,
+            reason: entry.uncertain ? "Flagged from photo intake — verify details" : "",
+          },
+          measurements: { notes: entry.fit_notes ?? "" },
+          visits: visit.items || visit.notes || visit.spend
+            ? [visit]
             : [],
         });
         created.push(client);
@@ -97,6 +131,8 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
       setImporting(false);
     }
   }
+
+  const selectedCount = entries.filter((e) => e.include).length;
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -118,7 +154,7 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
           <button
             onClick={onClose}
             className="label"
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", minHeight: 44 }}
           >
             Close
           </button>
@@ -154,9 +190,8 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
                 ref={inputRef}
                 type="file"
                 accept="image/*"
-                className="hidden"
-                onChange={handleFileInput}
                 style={{ display: "none" }}
+                onChange={handleFileInput}
               />
             </div>
           )}
@@ -169,7 +204,10 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
               )}
 
               <p className="section-title">
-                Extracted entries <span style={{ fontStyle: "normal", fontSize: "0.75rem" }}>({entries.filter((e) => e.include).length} selected)</span>
+                Extracted entries{" "}
+                <span style={{ fontStyle: "normal", fontSize: "0.75rem" }}>
+                  ({selectedCount} selected)
+                </span>
               </p>
 
               <div className="flex flex-col gap-4">
@@ -210,7 +248,7 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
                           next[i] = { ...entry, include: e.target.checked };
                           setEntries(next);
                         }}
-                        style={{ accentColor: "var(--ink)", width: 16, height: 16, flexShrink: 0 }}
+                        style={{ accentColor: "var(--ink)", width: 16, height: 16, flexShrink: 0, marginTop: 6 }}
                       />
                     </div>
 
@@ -239,12 +277,36 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
                       ))}
                     </select>
 
-                    {entry.notes && (
-                      <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>{entry.notes}</p>
-                    )}
+                    {/* Structured fields preview */}
+                    <div className="flex flex-col gap-1.5">
+                      {entry.visit_date && (
+                        <p className="label" style={{ color: "var(--muted)", fontSize: "0.6rem" }}>
+                          Date: {entry.visit_date}
+                        </p>
+                      )}
+                      {entry.purchase_item && (
+                        <p style={{ fontSize: "0.8rem" }}>{entry.purchase_item}</p>
+                      )}
+                      {entry.amount_paid != null && (
+                        <p className="label" style={{ color: "var(--good)" }}>
+                          ${entry.amount_paid.toLocaleString()}
+                        </p>
+                      )}
+                      {entry.alteration_needed && (
+                        <p className="label" style={{ color: "var(--warn)", fontSize: "0.58rem" }}>
+                          Alteration: {entry.alteration_details ?? "needed"}
+                          {entry.alteration_date_promised ? ` — ready ${entry.alteration_date_promised}` : ""}
+                        </p>
+                      )}
+                      {entry.fit_notes && (
+                        <p className="label" style={{ color: "var(--muted)", fontSize: "0.58rem" }}>
+                          Fit: {entry.fit_notes}
+                        </p>
+                      )}
+                    </div>
 
                     {entry.raw_text && (
-                      <p className="label" style={{ color: "var(--muted)", fontStyle: "italic" }}>
+                      <p className="label" style={{ color: "var(--muted)", fontStyle: "italic", fontSize: "0.55rem" }}>
                         Raw: {entry.raw_text}
                       </p>
                     )}
@@ -256,11 +318,11 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
                 <button
                   onClick={handleImport}
                   className="btn btn-primary flex-1"
-                  disabled={importing || !entries.some((e) => e.include)}
+                  disabled={importing || selectedCount === 0}
                 >
                   {importing
                     ? "Importing..."
-                    : `Import ${entries.filter((e) => e.include).length} client${entries.filter((e) => e.include).length !== 1 ? "s" : ""}`}
+                    : `Import ${selectedCount} client${selectedCount !== 1 ? "s" : ""}`}
                 </button>
                 <button
                   onClick={() => setEntries([])}

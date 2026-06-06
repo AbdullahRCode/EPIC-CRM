@@ -9,7 +9,6 @@ import { BranchOwnerContext } from "@/lib/branch-context";
 const NAV = [
   { label: "Logbook", href: "/" },
   { label: "Insights", href: "/insights" },
-  { label: "Calendar", href: "/calendar" },
   { label: "Comms", href: "/comms", ownerOnly: true },
 ];
 
@@ -44,94 +43,97 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen flex flex-col" style={{ background: "var(--paper)" }}>
       {/* Sticky header */}
       <header
-        className="sticky top-0 z-40 flex items-center justify-between px-6 py-3"
+        className="sticky top-0 z-40"
         style={{ background: "var(--paper)", borderBottom: "1px solid var(--line)" }}
       >
-        {/* Wordmark */}
-        <div className="flex items-baseline gap-3">
-          <span
-            className="font-serif"
-            style={{ fontSize: "1.3rem", fontWeight: 500, letterSpacing: "0.08em" }}
-          >
-            EPIC
-          </span>
-          <span className="label" style={{ letterSpacing: "0.25em" }}>
-            Menswear&nbsp;CRM
-          </span>
-        </div>
-
-        {/* Center nav */}
-        <nav className="hidden md:flex items-center gap-1">
-          {visibleNav.map((n) => {
-            const active = pathname === n.href || (n.href !== "/" && pathname.startsWith(n.href));
-            return (
-              <Link
-                key={n.href}
-                href={n.href}
-                className="label px-4 py-2 transition-colors"
-                style={{
-                  color: active ? "var(--ink)" : "var(--muted)",
-                  borderBottom: active ? "1px solid var(--ink)" : "1px solid transparent",
-                  letterSpacing: "0.2em",
-                }}
-              >
-                {n.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Right controls */}
-        <div className="flex items-center gap-4">
-          {/* Branch picker */}
-          <div className="flex items-center gap-2">
-            <span className="label hidden sm:block">Branch</span>
-            <select
-              className="input-line"
-              style={{ fontSize: "0.7rem", minWidth: "9rem", paddingRight: "1.5rem" }}
-              value={branch}
-              onChange={(e) => handleBranchChange(e.target.value as Branch | "All")}
+        <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-3 flex-wrap">
+          {/* Wordmark */}
+          <div className="flex items-baseline gap-2 sm:gap-3 flex-shrink-0">
+            <span
+              className="font-serif"
+              style={{ fontSize: "1.3rem", fontWeight: 500, letterSpacing: "0.08em" }}
             >
-              <option value="All">All Branches</option>
-              {BRANCHES.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
+              EPIC
+            </span>
+            <span className="label hidden xs:inline" style={{ letterSpacing: "0.25em" }}>
+              Menswear&nbsp;CRM
+            </span>
           </div>
 
-          {/* Owner toggle */}
-          <button
-            onClick={toggleOwner}
-            className="label flex items-center gap-2 px-3 py-1.5 transition-colors"
-            style={{
-              border: "1px solid",
-              borderColor: ownerMode ? "var(--ink)" : "var(--line)",
-              background: ownerMode ? "var(--ink)" : "transparent",
-              color: ownerMode ? "var(--paper)" : "var(--muted)",
-              letterSpacing: "0.18em",
-              cursor: "pointer",
-            }}
-          >
-            <span
+          {/* Center nav — desktop only */}
+          <nav className="hidden md:flex items-center gap-1">
+            {visibleNav.map((n) => {
+              const active = pathname === n.href || (n.href !== "/" && pathname.startsWith(n.href));
+              return (
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  className="label px-4 py-2 transition-colors"
+                  style={{
+                    color: active ? "var(--ink)" : "var(--muted)",
+                    borderBottom: active ? "1px solid var(--ink)" : "1px solid transparent",
+                    letterSpacing: "0.2em",
+                  }}
+                >
+                  {n.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Right controls */}
+          <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+            {/* Branch picker */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="label hidden sm:block">Branch</span>
+              <select
+                className="input-line"
+                style={{ fontSize: "0.7rem", minWidth: "7.5rem", maxWidth: "10rem", paddingRight: "1.5rem" }}
+                value={branch}
+                onChange={(e) => handleBranchChange(e.target.value as Branch | "All")}
+              >
+                <option value="All">All Branches</option>
+                {BRANCHES.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Owner toggle */}
+            <button
+              onClick={toggleOwner}
+              className="label flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 transition-colors"
               style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: ownerMode ? "var(--vip)" : "var(--line)",
-                display: "inline-block",
-                flexShrink: 0,
+                border: "1px solid",
+                borderColor: ownerMode ? "var(--ink)" : "var(--line)",
+                background: ownerMode ? "var(--ink)" : "transparent",
+                color: ownerMode ? "var(--paper)" : "var(--muted)",
+                letterSpacing: "0.18em",
+                cursor: "pointer",
+                minHeight: 44,
               }}
-            />
-            Owner
-          </button>
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: ownerMode ? "var(--vip)" : "var(--line)",
+                  display: "inline-block",
+                  flexShrink: 0,
+                }}
+              />
+              Owner
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Mobile nav */}
+      {/* Mobile nav — scrollable tabs */}
       <nav
-        className="md:hidden flex items-center gap-1 px-4 overflow-x-auto"
+        className="md:hidden flex items-center gap-0 px-2 overflow-x-auto scrollbar-none"
         style={{ borderBottom: "1px solid var(--line)", background: "var(--paper)" }}
       >
         {visibleNav.map((n) => {
@@ -140,11 +142,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Link
               key={n.href}
               href={n.href}
-              className="label px-3 py-2.5 whitespace-nowrap flex-shrink-0"
+              className="label px-4 whitespace-nowrap flex-shrink-0 flex items-center"
               style={{
                 color: active ? "var(--ink)" : "var(--muted)",
                 borderBottom: active ? "2px solid var(--ink)" : "2px solid transparent",
                 letterSpacing: "0.18em",
+                minHeight: 44,
               }}
             >
               {n.label}

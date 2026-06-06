@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
@@ -8,9 +8,8 @@ import { DEFAULT_TENANT } from "@/lib/types";
 export async function POST(req: NextRequest) {
   try {
     const { query, branch } = await req.json();
-    if (!query?.trim()) return NextResponse.json({ ids: [], interpretation: "" });
+    if (!query?.trim()) return NextResponse.json({ type: "search", ids: [], interpretation: "" });
 
-    // Fetch all clients for context (just the fields needed for search)
     let dbQuery = getSupabaseAdmin()
       .from("clients")
       .select("id, name, phone, email, branch, events, event_date, alterations, alteration_status, special_order, special_order_status, follow_up, visits, updated_at")
@@ -19,9 +18,8 @@ export async function POST(req: NextRequest) {
     if (branch && branch !== "All") dbQuery = dbQuery.eq("branch", branch);
 
     const { data: clients } = await dbQuery;
-    if (!clients?.length) return NextResponse.json({ ids: [], interpretation: "No clients found." });
+    if (!clients?.length) return NextResponse.json({ type: "search", ids: [], interpretation: "No clients found." });
 
-    // Build a compact client list for the prompt
     const clientIndex = clients.map((c) => {
       const totalSpend = (c.visits ?? []).reduce((s: number, v: { spend?: number }) => s + (v.spend ?? 0), 0);
       const lastVisit = (c.visits ?? []).sort((a: { date: string }, b: { date: string }) => b.date.localeCompare(a.date))[0];
@@ -32,6 +30,7 @@ export async function POST(req: NextRequest) {
       return {
         id: c.id,
         name: c.name,
+        phone: c.phone,
         branch: c.branch,
         events: c.events ?? [],
         event_date: c.event_date,
@@ -52,38 +51,59 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "user",
-          content: `You are a CRM search assistant for EPIC Menswear, a luxury menswear chain.
+          content: `You are the EPIC Menswear CRM assistant. You help staff find clients and take quick actions.
 
-Given this natural language query: "${query}"
+EPIC Menswear product catalog (for price verification):
+- Carlo Lusso suits: ~$250 full suit
+- Calvin Klein: Jacket $350, Pants $175, Full Suit $450
+- Tommy Hilfiger: ~$475
+- Giorgio Fiorelli, Mantoni, Bertolini, Renoir: $250-$475
+- Sports Coats: $150-$350, Shirts: $60-$120, Accessories: $20-$80
 
-Here is a JSON list of clients:
-${JSON.stringify(clientIndex, null, 2)}
+When a user types a phone number or partial number → return client IDs matching that phone
+When a user types a name → return matching client IDs ranked by relevance
+When a user types "alteration done [name or phone]" → return { type: "action", action: "mark_alteration", query: "name or phone", status: "Picked up" }
+When a user types "hemming done [name or phone]" → same as above
+When a user types "ready [name or phone]" → return { type: "action", action: "mark_alteration", query: "...", status: "Ready" }
+When a user types "order arrived [name or phone]" → return { type: "action", action: "mark_order", query: "...", status: "Arrived" }
+When a user types "show alterations" → return { type: "action", action: "filter", filter: "Alterations" }
+When a user types "show VIP" → return { type: "action", action: "filter", filter: "VIP" }
+When a user types "show follow-up" or "needs follow-up" → return { type: "action", action: "filter", filter: "Follow-up" }
+When a user types "show cold" or "cold clients" → return { type: "action", action: "filter", filter: "Cold" }
+When a user types "active orders" or "show orders" → return { type: "action", action: "filter", filter: "Special Order" }
+When a user types "ready for pickup" → return { type: "action", action: "filter", filter: "Alterations" }
 
-Return ONLY valid JSON in this exact format:
-{
-  "ids": ["id1", "id2", ...],
-  "interpretation": "One sentence explaining what you searched for"
-}
+For regular searches, return:
+{ "type": "search", "ids": ["id1", "id2", ...], "interpretation": "One sentence explaining what you searched for" }
+
+For actions, return:
+{ "type": "action", "action": "mark_alteration" | "mark_order" | "filter", "query": "name or phone if applicable", "status": "new status if applicable", "filter": "filter value if applicable" }
 
 Rules:
-- Match clients relevant to the query based on events, alterations, spend, follow-up, days since visit, etc.
 - "Cold" = 90+ days since last visit
 - "VIP" = total_spend >= 1000
 - "Returning" = visit_count >= 2
-- Include all matching IDs, ordered by relevance
-- If no matches, return empty ids array`,
+- Include all matching IDs ordered by relevance
+- If no matches, return empty ids array
+
+Here is the client list:
+${JSON.stringify(clientIndex, null, 2)}
+
+User query: "${query}"`,
         },
       ],
     });
 
     const raw = message.content[0].type === "text" ? message.content[0].text : "";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    const result = jsonMatch ? JSON.parse(jsonMatch[0]) : { ids: [], interpretation: raw };
+    const result = jsonMatch ? JSON.parse(jsonMatch[0]) : { type: "search", ids: [], interpretation: raw };
+
+    // Ensure type field is present for backward compat
+    if (!result.type) result.type = "search";
 
     return NextResponse.json(result);
   } catch (err) {
     console.error("AI search error:", err);
-    return NextResponse.json({ ids: [], interpretation: "Search error. Try again." }, { status: 500 });
+    return NextResponse.json({ type: "search", ids: [], interpretation: "Search error. Try again." }, { status: 500 });
   }
 }
-

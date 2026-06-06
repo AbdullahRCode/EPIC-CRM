@@ -7,9 +7,10 @@ import { useBranchOwner } from "@/lib/branch-context";
 import BranchBars from "@/components/BranchBars";
 import TrendChart from "@/components/TrendChart";
 import DailySummary from "@/components/DailySummary";
+import DonutChart from "@/components/DonutChart";
 import { deriveTags } from "@/lib/types";
 
-type DatePreset = "today" | "week" | "month" | "year" | "all" | "custom";
+type DatePreset = "yesterday" | "today" | "week" | "month" | "all" | "custom";
 
 interface RangeState {
   preset: DatePreset;
@@ -21,8 +22,17 @@ function todayStr() {
   return new Date().toISOString().split("T")[0];
 }
 
+function yesterdayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split("T")[0];
+}
+
 function computeRange(state: RangeState, clients: Client[]): { from: string; to: string } {
   const today = todayStr();
+  const yesterday = yesterdayStr();
+
+  if (state.preset === "yesterday") return { from: yesterday, to: yesterday };
   if (state.preset === "today") return { from: today, to: today };
   if (state.preset === "week") {
     const d = new Date();
@@ -34,31 +44,41 @@ function computeRange(state: RangeState, clients: Client[]): { from: string; to:
     d.setDate(d.getDate() - 29);
     return { from: d.toISOString().split("T")[0], to: today };
   }
-  if (state.preset === "year") {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 1);
-    d.setDate(d.getDate() + 1);
-    return { from: d.toISOString().split("T")[0], to: today };
-  }
   if (state.preset === "custom") {
     return { from: state.customFrom || today, to: state.customTo || today };
   }
-  // "all" — earliest recorded visit to today
+  // "all"
   const allDates = clients.flatMap((c) => (c.visits ?? []).map((v) => v.date)).sort();
   const earliest =
-    allDates[0] ??
-    new Date(Date.now() - 2 * 365 * 86400000).toISOString().split("T")[0];
+    allDates[0] ?? new Date(Date.now() - 2 * 365 * 86400000).toISOString().split("T")[0];
   return { from: earliest, to: today };
 }
 
 const PRESETS: { label: string; value: DatePreset }[] = [
+  { label: "Yesterday", value: "yesterday" },
   { label: "Today", value: "today" },
   { label: "This week", value: "week" },
   { label: "This month", value: "month" },
-  { label: "This year", value: "year" },
   { label: "All time", value: "all" },
   { label: "Custom", value: "custom" },
 ];
+
+function parseProductGroup(text: string): string {
+  const t = text.toLowerCase();
+  if (t.includes("calvin klein")) return "Calvin Klein";
+  if (t.includes("carlo lusso")) return "Carlo Lusso";
+  if (t.includes("giorgio") || t.includes("fiorelli")) return "Giorgio Fiorelli";
+  if (t.includes("mantoni")) return "Mantoni";
+  if (t.includes("tommy")) return "Tommy Hilfiger";
+  if (t.includes("bertolini")) return "Bertolini";
+  if (t.includes("renoir")) return "Renoir";
+  if (t.includes("shirt")) return "Dress Shirt";
+  if (t.includes("tie")) return "Ties & Accessories";
+  if (t.includes("shoe") || t.includes("boot")) return "Footwear";
+  if (t.includes("sport") || t.includes("blazer")) return "Sports Coat";
+  if (t.includes("tux")) return "Tuxedo";
+  return "Other";
+}
 
 export default function InsightsPage() {
   const { branch, ownerMode } = useBranchOwner();
@@ -88,7 +108,6 @@ export default function InsightsPage() {
     [rangeState, clients]
   );
 
-  // Clients with visits pre-filtered to the selected range
   const filteredClients = useMemo(() => {
     if (rangeState.preset === "all") return clients;
     return clients.map((c) => ({
@@ -97,7 +116,7 @@ export default function InsightsPage() {
     }));
   }, [clients, rangeState.preset, dateFrom, dateTo]);
 
-  // Revenue and active clients are range-aware
+  // Stats
   const activeClients =
     rangeState.preset === "all"
       ? clients.length
@@ -108,7 +127,6 @@ export default function InsightsPage() {
     0
   );
 
-  // Status indicators always reflect current state
   const vipCount = clients.filter((c) => deriveTags(c).includes("VIP")).length;
   const coldCount = clients.filter((c) => deriveTags(c).includes("Cold")).length;
   const followUpCount = clients.filter((c) => c.follow_up?.needed).length;
@@ -132,20 +150,93 @@ export default function InsightsPage() {
     { label: "Orders arrived", value: ordersArrived, color: "var(--good)" },
   ];
 
+  // Revenue and client count by branch (for donut chart)
+  const revenueByBranch = useMemo(() => {
+    const result: Partial<Record<Branch, number>> = {};
+    filteredClients.forEach((c) => {
+      const spend = (c.visits ?? []).reduce((s, v) => s + (v.spend ?? 0), 0);
+      result[c.branch] = (result[c.branch] ?? 0) + spend;
+    });
+    return result;
+  }, [filteredClients]);
+
+  const clientsByBranch = useMemo(() => {
+    const result: Partial<Record<Branch, number>> = {};
+    filteredClients.forEach((c) => {
+      result[c.branch] = (result[c.branch] ?? 0) + 1;
+    });
+    return result;
+  }, [filteredClients]);
+
+  // Top Products Sold
+  const topProducts = useMemo(() => {
+    const counts: Record<string, { count: number; revenue: number }> = {};
+    filteredClients.forEach((c) => {
+      (c.visits ?? []).forEach((v) => {
+        if (!v.items?.trim()) return;
+        const group = parseProductGroup(v.items);
+        if (!counts[group]) counts[group] = { count: 0, revenue: 0 };
+        counts[group].count++;
+        counts[group].revenue += v.spend ?? 0;
+      });
+    });
+    return Object.entries(counts)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.count - a.count || b.revenue - a.revenue)
+      .slice(0, 8);
+  }, [filteredClients]);
+
+  const maxProductCount = Math.max(...topProducts.map((p) => p.count), 1);
+
+  // Top Staff
+  const topStaff = useMemo(() => {
+    const staffMap: Record<string, { displayName: string; count: number; revenue: number }> = {};
+    filteredClients.forEach((c) => {
+      (c.visits ?? []).forEach((v) => {
+        const name = v.staff?.trim();
+        if (!name) return;
+        const key = name.toLowerCase();
+        if (!staffMap[key]) staffMap[key] = { displayName: name, count: 0, revenue: 0 };
+        staffMap[key].count++;
+        staffMap[key].revenue += v.spend ?? 0;
+      });
+    });
+    return Object.values(staffMap)
+      .sort((a, b) => b.revenue - a.revenue || b.count - a.count)
+      .slice(0, 5);
+  }, [filteredClients]);
+
+  const hasStaffData = useMemo(() => {
+    return filteredClients.some((c) => (c.visits ?? []).some((v) => v.staff?.trim()));
+  }, [filteredClients]);
+
   return (
     <div className="overflow-y-auto" style={{ height: "calc(100vh - 97px)" }}>
-      <div className="px-6 pt-5 pb-3" style={{ borderBottom: "1px solid var(--line)" }}>
-        <h1 className="font-serif" style={{ fontSize: "1.6rem", fontWeight: 400 }}>
-          <em>Insights</em>
-        </h1>
-        <p className="label mt-1" style={{ color: "var(--muted)" }}>
-          {branch === "All" ? "All branches" : branch} — performance at a glance
-        </p>
+      {/* Page header */}
+      <div
+        className="px-4 sm:px-6 pt-5 pb-3 flex items-start justify-between gap-3"
+        style={{ borderBottom: "1px solid var(--line)" }}
+      >
+        <div>
+          <h1 className="font-serif" style={{ fontSize: "1.6rem", fontWeight: 400 }}>
+            <em>Insights</em>
+          </h1>
+          <p className="label mt-1" style={{ color: "var(--muted)" }}>
+            {branch === "All" ? "All branches" : branch} — performance at a glance
+          </p>
+        </div>
+        <button
+          className="btn btn-ghost insights-export-btn flex-shrink-0"
+          onClick={() => window.print()}
+          style={{ alignSelf: "center" }}
+        >
+          Export Report
+        </button>
       </div>
 
       {/* Date range picker */}
       <div
-        className="px-6 py-3 flex flex-col gap-3"
+        className="px-4 sm:px-6 py-3 flex flex-col gap-3 insights-controls"
         style={{ borderBottom: "1px solid var(--line)" }}
       >
         <div className="flex flex-wrap gap-1.5">
@@ -159,6 +250,7 @@ export default function InsightsPage() {
                   background: active ? "var(--ink)" : "transparent",
                   color: active ? "var(--paper)" : "var(--muted)",
                   borderColor: active ? "var(--ink)" : "var(--line)",
+                  minHeight: 44,
                 }}
                 onClick={() => setRangeState((r) => ({ ...r, preset: p.value }))}
               >
@@ -169,27 +261,21 @@ export default function InsightsPage() {
         </div>
 
         {rangeState.preset === "custom" && (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <input
               type="date"
               className="input-line"
               style={{ maxWidth: "9rem" }}
               value={rangeState.customFrom}
-              onChange={(e) =>
-                setRangeState((r) => ({ ...r, customFrom: e.target.value }))
-              }
+              onChange={(e) => setRangeState((r) => ({ ...r, customFrom: e.target.value }))}
             />
-            <span className="label" style={{ color: "var(--muted)" }}>
-              to
-            </span>
+            <span className="label" style={{ color: "var(--muted)" }}>to</span>
             <input
               type="date"
               className="input-line"
               style={{ maxWidth: "9rem" }}
               value={rangeState.customTo}
-              onChange={(e) =>
-                setRangeState((r) => ({ ...r, customTo: e.target.value }))
-              }
+              onChange={(e) => setRangeState((r) => ({ ...r, customTo: e.target.value }))}
             />
           </div>
         )}
@@ -200,27 +286,27 @@ export default function InsightsPage() {
           <span className="label" style={{ color: "var(--muted)" }}>Loading...</span>
         </div>
       ) : (
-        <div className="px-6 py-6 flex flex-col gap-10">
-          {/* Quick stats */}
+        <div className="px-4 sm:px-6 py-6 flex flex-col gap-10 insights-print-container">
+
+          {/* Quick stats grid — 2 cols mobile, 4 tablet, 7 desktop */}
           <div
-            className="grid gap-0"
-            style={{
-              gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))",
-              border: "1px solid var(--line)",
-            }}
+            className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 insights-stats-grid"
+            style={{ border: "1px solid var(--line)" }}
           >
             {STATS.map((stat, i) => (
               <div
                 key={stat.label}
                 className="flex flex-col gap-1 p-4"
                 style={{
-                  borderRight: i < STATS.length - 1 ? "1px solid var(--line)" : "none",
+                  borderRight:
+                    i < STATS.length - 1 ? "1px solid var(--line)" : "none",
+                  borderBottom: "none",
                 }}
               >
                 <span
                   className="font-serif"
                   style={{
-                    fontSize: "1.6rem",
+                    fontSize: "1.5rem",
                     fontWeight: 400,
                     color: stat.color ?? "var(--ink)",
                   }}
@@ -234,11 +320,165 @@ export default function InsightsPage() {
             ))}
           </div>
 
-          {/* Branch comparison */}
-          <BranchBars clients={filteredClients} ownerMode={ownerMode} activeBranch={branch} />
+          {/* Revenue by branch donut chart */}
+          <div>
+            <p className="section-title">Revenue by Branch</p>
+            <div className="flex justify-center sm:justify-start overflow-x-auto">
+              <DonutChart
+                revenueByBranch={revenueByBranch}
+                clientsByBranch={clientsByBranch}
+                activeBranch={branch}
+              />
+            </div>
+          </div>
+
+          {/* Top Products Sold */}
+          <div>
+            <p className="section-title">Top Products Sold</p>
+            {topProducts.length === 0 ? (
+              <p className="label" style={{ color: "var(--muted)" }}>
+                No purchase data in this period. Log items on visits to see rankings.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {topProducts.map((product, idx) => (
+                  <div key={product.name} className="flex items-center gap-3">
+                    <span
+                      className="label flex-shrink-0"
+                      style={{
+                        color: idx === 0 ? "var(--vip)" : "var(--muted)",
+                        fontSize: "0.6rem",
+                        width: "1.5rem",
+                        textAlign: "right",
+                      }}
+                    >
+                      {idx + 1}
+                    </span>
+                    <div className="flex flex-col gap-1 flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span
+                          style={{
+                            fontSize: "0.88rem",
+                            fontWeight: idx === 0 ? 600 : 400,
+                            color: idx === 0 ? "var(--ink)" : "var(--ink)",
+                          }}
+                        >
+                          {product.name}
+                        </span>
+                        <div className="flex gap-3">
+                          <span className="label" style={{ color: "var(--muted)" }}>
+                            {product.count} sale{product.count !== 1 ? "s" : ""}
+                          </span>
+                          {product.revenue > 0 && (
+                            <span
+                              className="label"
+                              style={{ color: idx === 0 ? "var(--vip)" : "var(--good)" }}
+                            >
+                              ${product.revenue.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {/* Horizontal bar */}
+                      <div
+                        style={{
+                          height: 3,
+                          background: "var(--line)",
+                          position: "relative",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: 0,
+                            top: 0,
+                            height: "100%",
+                            width: `${(product.count / maxProductCount) * 100}%`,
+                            background: idx === 0 ? "var(--vip)" : "var(--ink)",
+                            transition: "width 0.4s ease",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Top Staff leaderboard */}
+          <div>
+            <p className="section-title">Top Staff</p>
+            {!hasStaffData ? (
+              <p className="label" style={{ color: "var(--muted)" }}>
+                Start logging employee names on each visit to see rankings.
+              </p>
+            ) : topStaff.length === 0 ? (
+              <p className="label" style={{ color: "var(--muted)" }}>
+                No staff data in this period.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {topStaff.map((staff, idx) => (
+                  <div key={staff.displayName} className="flex items-center gap-3">
+                    <span
+                      className="label flex-shrink-0"
+                      style={{
+                        color: idx === 0 ? "var(--vip)" : "var(--muted)",
+                        fontSize: idx === 0 ? "0.85rem" : "0.6rem",
+                        width: "1.5rem",
+                        textAlign: "right",
+                      }}
+                    >
+                      {idx === 0 ? "✦" : idx + 1}
+                    </span>
+                    <div className="flex-1 flex items-center justify-between gap-2 flex-wrap">
+                      <span
+                        style={{
+                          fontSize: "0.88rem",
+                          fontWeight: idx === 0 ? 600 : 400,
+                          textTransform: "capitalize",
+                        }}
+                      >
+                        {staff.displayName}
+                      </span>
+                      <div className="flex gap-3">
+                        <span className="label" style={{ color: "var(--muted)" }}>
+                          {staff.count} sale{staff.count !== 1 ? "s" : ""}
+                        </span>
+                        {staff.revenue > 0 && (
+                          <span
+                            className="label"
+                            style={{ color: idx === 0 ? "var(--vip)" : "var(--good)" }}
+                          >
+                            ${staff.revenue.toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Branch comparison bars */}
+          <div className="branch-bars-container">
+            <BranchBars
+              clients={filteredClients}
+              ownerMode={ownerMode}
+              activeBranch={branch}
+            />
+          </div>
 
           {/* Trend chart */}
-          <TrendChart clients={filteredClients} dateFrom={dateFrom} dateTo={dateTo} />
+          <div
+            className="trend-chart-container overflow-x-auto"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
+            <TrendChart clients={filteredClients} dateFrom={dateFrom} dateTo={dateTo} />
+          </div>
 
           {/* AI daily summary */}
           <DailySummary ownerMode={ownerMode} branch={branch} />
