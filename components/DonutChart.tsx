@@ -32,7 +32,7 @@ function arcPath(
   startDeg: number,
   endDeg: number
 ): string {
-  const gap = 1.2; // degrees gap between segments
+  const gap = 1.2;
   const s = startDeg + gap / 2;
   const e = endDeg - gap / 2;
   if (e <= s) return "";
@@ -62,7 +62,6 @@ export default function DonutChart({
   const totalRevenue = BRANCHES.reduce((s, b) => s + (revenueByBranch[b] ?? 0), 0);
   const totalClients = BRANCHES.reduce((s, b) => s + (clientsByBranch[b] ?? 0), 0);
 
-  // Build segment data — branches with $0 get a thin phantom 1% slice
   const hasAnyRevenue = totalRevenue > 0;
 
   interface Segment {
@@ -79,22 +78,18 @@ export default function DonutChart({
   let cursor = 0;
 
   if (!hasAnyRevenue) {
-    // Equal slices if no revenue at all
     BRANCHES.forEach((b, idx) => {
-      const startDeg = idx * 60;
-      const endDeg = startDeg + 60;
       segments.push({
         branch: b,
         revenue: 0,
         clients: clientsByBranch[b] ?? 0,
         pct: 100 / BRANCHES.length,
-        startDeg,
-        endDeg,
+        startDeg: idx * 60,
+        endDeg: (idx + 1) * 60,
         isPhantom: true,
       });
     });
   } else {
-    // Allocate degrees: branches with $0 get 1% of 360 = 3.6 degrees
     const PHANTOM_DEG = 3.6;
     const zeroBranches = BRANCHES.filter((b) => !revenueByBranch[b]);
     const revenueTotal = BRANCHES.reduce((s, b) => s + (revenueByBranch[b] ?? 0), 0);
@@ -103,12 +98,7 @@ export default function DonutChart({
 
     BRANCHES.forEach((b) => {
       const rev = revenueByBranch[b] ?? 0;
-      let span: number;
-      if (rev === 0) {
-        span = PHANTOM_DEG;
-      } else {
-        span = (rev / revenueTotal) * activeDeg;
-      }
+      const span = rev === 0 ? PHANTOM_DEG : (rev / revenueTotal) * activeDeg;
       segments.push({
         branch: b,
         revenue: rev,
@@ -122,15 +112,16 @@ export default function DonutChart({
     });
   }
 
-  const cx = 80;
-  const cy = 80;
-  const R = 72;
-  const ri = 46;
+  // Thicker donut: R=80, ri=52, viewBox 172×172 (cx=cy=86, 6px padding)
+  const cx = 86;
+  const cy = 86;
+  const R = 80;
+  const ri = 52;
 
   return (
-    <div className="donut-chart-container flex flex-col items-center gap-5" style={{ maxWidth: 320 }}>
-      <div style={{ position: "relative", width: 160, height: 160 }}>
-        <svg viewBox="0 0 160 160" width="160" height="160">
+    <div className="donut-chart-container flex flex-col items-center gap-5" style={{ maxWidth: 320, width: "100%" }}>
+      <div style={{ position: "relative", width: 172, height: 172 }}>
+        <svg viewBox="0 0 172 172" width="172" height="172">
           {segments.map((seg) => {
             const color = seg.isPhantom ? "var(--line)" : BRANCH_COLORS[seg.branch];
             const isActive = activeBranch === "All" || activeBranch === seg.branch;
@@ -143,12 +134,12 @@ export default function DonutChart({
                 key={seg.branch}
                 d={path}
                 fill={color}
-                opacity={!isActive ? 0.18 : isHovered ? 1 : 0.9}
+                opacity={!isActive ? 0.15 : isHovered ? 1 : 0.88}
                 style={{
                   cursor: "pointer",
                   transition: "opacity 0.15s, transform 0.1s",
                   transformOrigin: `${cx}px ${cy}px`,
-                  transform: isHovered ? "scale(1.04)" : "scale(1)",
+                  transform: isHovered ? "scale(1.03)" : "scale(1)",
                 }}
                 onMouseEnter={() => setHovered(seg.branch)}
                 onMouseLeave={() => setHovered(null)}
@@ -166,17 +157,28 @@ export default function DonutChart({
             transform: "translate(-50%, -50%)",
             textAlign: "center",
             pointerEvents: "none",
+            width: ri * 1.5,
           }}
         >
           {hovered ? (
             <>
               <p
                 className="font-serif"
-                style={{ fontSize: "0.95rem", fontWeight: 400, color: "var(--ink)" }}
+                style={{ fontSize: "1rem", fontWeight: 300, color: "var(--ink)", lineHeight: 1.1 }}
               >
                 ${(revenueByBranch[hovered] ?? 0).toLocaleString()}
               </p>
-              <p className="label" style={{ fontSize: "0.48rem", color: "var(--muted)" }}>
+              <p
+                style={{
+                  fontFamily: "var(--font-outfit), system-ui, sans-serif",
+                  fontSize: "0.5rem",
+                  fontWeight: 500,
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  color: "var(--muted)",
+                  marginTop: 2,
+                }}
+              >
                 {segments.find((s) => s.branch === hovered)?.pct.toFixed(1)}%
               </p>
             </>
@@ -184,11 +186,21 @@ export default function DonutChart({
             <>
               <p
                 className="font-serif"
-                style={{ fontSize: "1rem", fontWeight: 400, color: "var(--ink)" }}
+                style={{ fontSize: "1rem", fontWeight: 300, color: "var(--ink)", lineHeight: 1.1 }}
               >
                 ${totalRevenue.toLocaleString()}
               </p>
-              <p className="label" style={{ fontSize: "0.48rem", color: "var(--muted)" }}>
+              <p
+                style={{
+                  fontFamily: "var(--font-outfit), system-ui, sans-serif",
+                  fontSize: "0.5rem",
+                  fontWeight: 500,
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  color: "var(--muted)",
+                  marginTop: 2,
+                }}
+              >
                 {totalClients} clients
               </p>
             </>
@@ -196,58 +208,67 @@ export default function DonutChart({
         </div>
       </div>
 
-      {/* Hover tooltip */}
-      {hovered && (
-        <div
-          className="label"
-          style={{
-            fontSize: "0.6rem",
-            color: "var(--ink)",
-            textAlign: "center",
-            letterSpacing: "0.12em",
-          }}
-        >
-          {hovered}
-          {" · "}
-          {clientsByBranch[hovered] ?? 0} clients
-          {" · "}
-          {segments.find((s) => s.branch === hovered)?.pct.toFixed(1)}%
-        </div>
-      )}
-
-      {/* Legend */}
-      <div className="flex flex-col gap-2 w-full">
+      {/* Legend — vertical bar + branch name + revenue + % */}
+      <div className="flex flex-col w-full" style={{ gap: 0 }}>
         {segments.map((seg) => {
           const isActive = activeBranch === "All" || activeBranch === seg.branch;
-          const color = seg.isPhantom ? "var(--line)" : BRANCH_COLORS[seg.branch];
+          const barColor = seg.isPhantom ? "var(--line)" : BRANCH_COLORS[seg.branch];
+          const isZero = seg.revenue === 0;
+
           return (
             <div
               key={seg.branch}
               className="flex items-center justify-between"
-              style={{ opacity: isActive ? 1 : 0.35 }}
+              style={{
+                borderBottom: "1px solid var(--line)",
+                padding: "0.55rem 0",
+                opacity: isActive ? (isZero ? 0.4 : 1) : 0.25,
+                cursor: "default",
+              }}
               onMouseEnter={() => setHovered(seg.branch)}
               onMouseLeave={() => setHovered(null)}
             >
               <div className="flex items-center gap-2">
+                {/* Vertical bar instead of square dot */}
                 <span
                   style={{
-                    width: 8,
-                    height: 8,
-                    background: color,
+                    width: 3,
+                    height: 16,
+                    background: barColor,
                     flexShrink: 0,
                     display: "inline-block",
                   }}
                 />
-                <span className="label" style={{ color: "var(--ink)", letterSpacing: "0.1em" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-outfit), system-ui, sans-serif",
+                    fontSize: "0.65rem",
+                    fontWeight: 500,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "var(--ink)",
+                  }}
+                >
                   {seg.branch}
                 </span>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="label" style={{ color: "var(--muted)" }}>
-                  ${seg.revenue.toLocaleString()}
+              <div className="flex items-center gap-4">
+                <span
+                  className="font-serif"
+                  style={{ fontSize: "0.9rem", fontWeight: 400, color: isZero ? "var(--muted)" : "var(--ink)" }}
+                >
+                  {isZero ? "—" : `$${seg.revenue.toLocaleString()}`}
                 </span>
-                <span className="label" style={{ color: "var(--muted)", minWidth: "2.5rem", textAlign: "right" }}>
-                  {seg.isPhantom ? "—" : `${seg.pct.toFixed(0)}%`}
+                <span
+                  style={{
+                    fontFamily: "var(--font-outfit), system-ui, sans-serif",
+                    fontSize: "0.6rem",
+                    color: "var(--muted)",
+                    minWidth: "2.5rem",
+                    textAlign: "right",
+                  }}
+                >
+                  {isZero ? "—" : `${seg.pct.toFixed(0)}%`}
                 </span>
               </div>
             </div>

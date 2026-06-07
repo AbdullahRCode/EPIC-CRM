@@ -133,21 +133,25 @@ export default function InsightsPage() {
   const alterationsReady = clients.filter((c) => c.alteration_status === "Ready").length;
   const ordersArrived = clients.filter((c) => c.special_order_status === "Arrived").length;
 
-  const STATS = [
+  const PERF_STATS = [
     {
       label: rangeState.preset === "all" ? "Total clients" : "Active clients",
-      value: activeClients,
+      value: String(activeClients),
+      color: "var(--ink)",
     },
-    { label: "VIP", value: vipCount, color: "var(--vip)" },
-    { label: "Cold (90d+)", value: coldCount, color: "var(--muted)" },
-    { label: "Follow-ups", value: followUpCount, color: "var(--danger)" },
     {
       label: rangeState.preset === "all" ? "Total revenue" : "Revenue in period",
       value: `$${totalRevenue.toLocaleString()}`,
       color: "var(--good)",
     },
-    { label: "Alt. ready", value: alterationsReady, color: "var(--good)" },
-    { label: "Orders arrived", value: ordersArrived, color: "var(--good)" },
+  ];
+
+  const STATUS_STATS = [
+    { label: "VIP", value: String(vipCount), color: "var(--vip)" },
+    { label: "Cold (90d+)", value: String(coldCount), color: "var(--muted)" },
+    { label: "Follow-ups", value: String(followUpCount), color: "var(--danger)" },
+    { label: "Alt. ready", value: String(alterationsReady), color: "var(--good)" },
+    { label: "Orders arrived", value: String(ordersArrived), color: "var(--good)" },
   ];
 
   // Revenue and client count by branch (for donut chart)
@@ -185,8 +189,6 @@ export default function InsightsPage() {
       .sort((a, b) => b.count - a.count || b.revenue - a.revenue)
       .slice(0, 8);
   }, [filteredClients]);
-
-  const maxProductCount = Math.max(...topProducts.map((p) => p.count), 1);
 
   // Top Staff
   const topStaff = useMemo(() => {
@@ -288,36 +290,54 @@ export default function InsightsPage() {
       ) : (
         <div className="px-4 sm:px-6 py-6 flex flex-col gap-10 insights-print-container">
 
-          {/* Quick stats grid — 2 cols mobile, 4 tablet, 7 desktop */}
-          <div
-            className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 insights-stats-grid"
-            style={{ border: "1px solid var(--line)" }}
-          >
-            {STATS.map((stat, i) => (
-              <div
-                key={stat.label}
-                className="flex flex-col gap-1 p-4"
-                style={{
-                  borderRight:
-                    i < STATS.length - 1 ? "1px solid var(--line)" : "none",
-                  borderBottom: "none",
-                }}
-              >
-                <span
-                  className="font-serif"
+          {/* Stats — Group 1: Performance */}
+          <div className="flex flex-col gap-3 insights-stats-grid">
+            <div className="grid grid-cols-2 gap-0">
+              {PERF_STATS.map((stat) => (
+                <div
+                  key={stat.label}
                   style={{
-                    fontSize: "1.5rem",
-                    fontWeight: 400,
-                    color: stat.color ?? "var(--ink)",
+                    border: "1px solid var(--line)",
+                    padding: "1.25rem 1rem",
+                    background: "var(--paper)",
                   }}
                 >
-                  {stat.value}
-                </span>
-                <span className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>
-                  {stat.label}
-                </span>
-              </div>
-            ))}
+                  <p
+                    className="font-serif"
+                    style={{ fontSize: "2rem", fontWeight: 300, color: stat.color, lineHeight: 1.1 }}
+                  >
+                    {stat.value}
+                  </p>
+                  <p className="label" style={{ color: "var(--muted)", fontSize: "0.55rem", marginTop: "0.35rem" }}>
+                    {stat.label}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Stats — Group 2: Status */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-0">
+              {STATUS_STATS.map((stat) => (
+                <div
+                  key={stat.label}
+                  style={{
+                    border: "1px solid var(--line)",
+                    padding: "1.25rem 1rem",
+                    background: "var(--paper)",
+                  }}
+                >
+                  <p
+                    className="font-serif"
+                    style={{ fontSize: "2rem", fontWeight: 300, color: stat.color, lineHeight: 1.1 }}
+                  >
+                    {stat.value}
+                  </p>
+                  <p className="label" style={{ color: "var(--muted)", fontSize: "0.55rem", marginTop: "0.35rem" }}>
+                    {stat.label}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Revenue by branch donut chart */}
@@ -340,67 +360,37 @@ export default function InsightsPage() {
                 No purchase data in this period. Log items on visits to see rankings.
               </p>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+                  gap: 0,
+                }}
+              >
                 {topProducts.map((product, idx) => (
-                  <div key={product.name} className="flex items-center gap-3">
-                    <span
-                      className="label flex-shrink-0"
-                      style={{
-                        color: idx === 0 ? "var(--vip)" : "var(--muted)",
-                        fontSize: "0.6rem",
-                        width: "1.5rem",
-                        textAlign: "right",
-                      }}
-                    >
-                      {idx + 1}
-                    </span>
-                    <div className="flex flex-col gap-1 flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span
-                          style={{
-                            fontSize: "0.88rem",
-                            fontWeight: idx === 0 ? 600 : 400,
-                            color: idx === 0 ? "var(--ink)" : "var(--ink)",
-                          }}
-                        >
-                          {product.name}
-                        </span>
-                        <div className="flex gap-3">
-                          <span className="label" style={{ color: "var(--muted)" }}>
-                            {product.count} sale{product.count !== 1 ? "s" : ""}
-                          </span>
-                          {product.revenue > 0 && (
-                            <span
-                              className="label"
-                              style={{ color: idx === 0 ? "var(--vip)" : "var(--good)" }}
-                            >
-                              ${product.revenue.toLocaleString()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {/* Horizontal bar */}
-                      <div
-                        style={{
-                          height: 3,
-                          background: "var(--line)",
-                          position: "relative",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <div
-                          style={{
-                            position: "absolute",
-                            left: 0,
-                            top: 0,
-                            height: "100%",
-                            width: `${(product.count / maxProductCount) * 100}%`,
-                            background: idx === 0 ? "var(--vip)" : "var(--ink)",
-                            transition: "width 0.4s ease",
-                          }}
-                        />
-                      </div>
-                    </div>
+                  <div
+                    key={product.name}
+                    style={{
+                      border: "1px solid var(--line)",
+                      borderTop: idx === 0 ? "2px solid var(--vip)" : "1px solid var(--line)",
+                      padding: "1rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.25rem",
+                    }}
+                  >
+                    <p className="font-serif" style={{ fontSize: "1rem", fontStyle: "italic", color: "var(--ink)" }}>
+                      {product.name}
+                    </p>
+                    <p style={{ fontSize: "1.6rem", fontWeight: 400, color: "var(--ink)", lineHeight: 1 }}>
+                      {product.count}
+                    </p>
+                    <p className="label" style={{ fontSize: "0.5rem", color: "var(--muted)" }}>
+                      {product.count === 1 ? "SALE" : "SALES"}
+                    </p>
+                    <p style={{ fontSize: "0.8rem", color: "var(--vip)", marginTop: "auto", paddingTop: "0.5rem" }}>
+                      {product.revenue > 0 ? `$${product.revenue.toLocaleString()}` : "—"}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -410,56 +400,52 @@ export default function InsightsPage() {
           {/* Top Staff leaderboard */}
           <div>
             <p className="section-title">Top Staff</p>
-            {!hasStaffData ? (
-              <p className="label" style={{ color: "var(--muted)" }}>
-                Start logging employee names on each visit to see rankings.
-              </p>
-            ) : topStaff.length === 0 ? (
-              <p className="label" style={{ color: "var(--muted)" }}>
-                No staff data in this period.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-4">
+            {topStaff.length > 0 && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+                  gap: 0,
+                }}
+              >
                 {topStaff.map((staff, idx) => (
-                  <div key={staff.displayName} className="flex items-center gap-3">
-                    <span
-                      className="label flex-shrink-0"
-                      style={{
-                        color: idx === 0 ? "var(--vip)" : "var(--muted)",
-                        fontSize: idx === 0 ? "0.85rem" : "0.6rem",
-                        width: "1.5rem",
-                        textAlign: "right",
-                      }}
-                    >
-                      {idx === 0 ? "✦" : idx + 1}
-                    </span>
-                    <div className="flex-1 flex items-center justify-between gap-2 flex-wrap">
-                      <span
-                        style={{
-                          fontSize: "0.88rem",
-                          fontWeight: idx === 0 ? 600 : 400,
-                          textTransform: "capitalize",
-                        }}
-                      >
-                        {staff.displayName}
-                      </span>
-                      <div className="flex gap-3">
-                        <span className="label" style={{ color: "var(--muted)" }}>
-                          {staff.count} sale{staff.count !== 1 ? "s" : ""}
-                        </span>
-                        {staff.revenue > 0 && (
-                          <span
-                            className="label"
-                            style={{ color: idx === 0 ? "var(--vip)" : "var(--good)" }}
-                          >
-                            ${staff.revenue.toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                  <div
+                    key={staff.displayName}
+                    style={{
+                      border: "1px solid var(--line)",
+                      borderTop: idx === 0 ? "2px solid var(--vip)" : "1px solid var(--line)",
+                      padding: "1rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.25rem",
+                    }}
+                  >
+                    <p className="font-serif" style={{ fontSize: "1rem", fontStyle: "italic", color: "var(--ink)" }}>
+                      {idx === 0 && <span style={{ color: "var(--vip)", marginRight: "0.3rem" }}>✦</span>}
+                      <span style={{ textTransform: "capitalize" }}>{staff.displayName}</span>
+                    </p>
+                    <p style={{ fontSize: "1.6rem", fontWeight: 400, color: "var(--ink)", lineHeight: 1 }}>
+                      {staff.count}
+                    </p>
+                    <p className="label" style={{ fontSize: "0.5rem", color: "var(--muted)" }}>
+                      {staff.count === 1 ? "SALE" : "SALES"}
+                    </p>
+                    <p style={{ fontSize: "0.8rem", color: "var(--vip)", marginTop: "auto", paddingTop: "0.5rem" }}>
+                      {staff.revenue > 0 ? `$${staff.revenue.toLocaleString()}` : "—"}
+                    </p>
                   </div>
                 ))}
               </div>
+            )}
+            {!hasStaffData && (
+              <p className="label" style={{ color: "var(--muted)", marginTop: "0.75rem", fontSize: "0.6rem" }}>
+                Log employee names on each visit to build rankings.
+              </p>
+            )}
+            {hasStaffData && topStaff.length === 0 && (
+              <p className="label" style={{ color: "var(--muted)" }}>
+                No staff data in this period.
+              </p>
             )}
           </div>
 

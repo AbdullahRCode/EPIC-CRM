@@ -12,15 +12,6 @@ interface AISearchPanelProps {
   onFilterChange?: (filter: ClientTag | null) => void;
 }
 
-const CHIPS: { label: string; query: string }[] = [
-  { label: "Show alterations", query: "show alterations" },
-  { label: "VIP clients", query: "show VIP" },
-  { label: "Needs follow-up", query: "show follow-up" },
-  { label: "Active orders", query: "active orders" },
-  { label: "Cold clients", query: "cold clients" },
-  { label: "Ready for pickup", query: "ready for pickup" },
-  { label: "Weddings in 60 days", query: "Weddings in 60 days" },
-];
 
 export default function AISearchPanel({
   branch,
@@ -168,42 +159,6 @@ export default function AISearchPanel({
           </button>
         )}
       </div>
-
-      {/* Suggestion chips */}
-      {!active && (
-        <div className="flex flex-wrap gap-1.5">
-          {CHIPS.map((chip) => (
-            <button
-              key={chip.label}
-              onClick={() => {
-                setQuery(chip.query);
-                runSearch(chip.query);
-              }}
-              className="label px-3"
-              style={{
-                background: "none",
-                border: "1px solid var(--line)",
-                cursor: "pointer",
-                color: "var(--muted)",
-                fontSize: "0.58rem",
-                letterSpacing: "0.12em",
-                transition: "all 0.15s",
-                minHeight: 36,
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--ink)";
-                (e.currentTarget as HTMLButtonElement).style.color = "var(--ink)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--line)";
-                (e.currentTarget as HTMLButtonElement).style.color = "var(--muted)";
-              }}
-            >
-              {chip.label}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Interpretation */}
       {interpretation && (
