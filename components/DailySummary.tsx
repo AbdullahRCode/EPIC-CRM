@@ -47,7 +47,7 @@ export default function DailySummary({ ownerMode, branch }: DailySummaryProps) {
         </p>
         <button
           onClick={generate}
-          className="btn btn-ghost"
+          className={data ? "btn btn-ghost" : "btn btn-primary"}
           disabled={loading}
         >
           {loading ? "Generating..." : data ? "↺ Refresh" : "Generate"}
@@ -57,7 +57,22 @@ export default function DailySummary({ ownerMode, branch }: DailySummaryProps) {
       <div style={{ borderBottom: "1px solid var(--line)" }} />
 
       {error && (
-        <p className="label" style={{ color: "var(--danger)" }}>{error}</p>
+        <div
+          style={{
+            border: "1px solid var(--danger)",
+            padding: "1rem 1.25rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.4rem",
+          }}
+        >
+          <p className="label" style={{ color: "var(--danger)" }}>{error}</p>
+          <p className="label" style={{ color: "var(--muted)", fontSize: "0.6rem" }}>
+            Add your Anthropic API key to{" "}
+            <code style={{ fontFamily: "monospace" }}>.env.local</code>:{" "}
+            <code style={{ fontFamily: "monospace" }}>ANTHROPIC_API_KEY=sk-ant-...</code>
+          </p>
+        </div>
       )}
 
       {!data && !loading && (

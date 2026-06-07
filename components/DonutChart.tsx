@@ -5,7 +5,7 @@ import type { Branch } from "@/lib/types";
 import { BRANCHES } from "@/lib/types";
 
 const BRANCH_COLORS: Record<Branch, string> = {
-  "Victoria": "#0a0a0a",
+  "Victoria": "#2C5F8A",
   "Surrey - Guildford": "#d4ad53",
   "Surrey - Central City": "#1f5a32",
   "Burnaby": "#8a5a1f",

@@ -340,6 +340,11 @@ export default function InsightsPage() {
             </div>
           </div>
 
+          {/* AI daily summary */}
+          <div style={{ border: "1px solid var(--line)", padding: "1.5rem" }}>
+            <DailySummary ownerMode={ownerMode} branch={branch} />
+          </div>
+
           {/* Revenue by branch donut chart */}
           <div>
             <p className="section-title">Revenue by Branch</p>
@@ -449,8 +454,8 @@ export default function InsightsPage() {
             )}
           </div>
 
-          {/* Branch comparison bars */}
-          <div className="branch-bars-container">
+          {/* Branch comparison */}
+          <div>
             <BranchBars
               clients={filteredClients}
               ownerMode={ownerMode}
@@ -466,8 +471,6 @@ export default function InsightsPage() {
             <TrendChart clients={filteredClients} dateFrom={dateFrom} dateTo={dateTo} />
           </div>
 
-          {/* AI daily summary */}
-          <DailySummary ownerMode={ownerMode} branch={branch} />
         </div>
       )}
     </div>

@@ -5,7 +5,6 @@ import type { Client, Branch, ClientTag } from "@/lib/types";
 import { deriveTags } from "@/lib/types";
 import { getClients } from "@/app/actions/clients";
 import ClientModal from "./ClientModal";
-import AISearchPanel from "./AISearchPanel";
 import PhotoIntake from "./PhotoIntake";
 
 type DateRange = "today" | "week" | "month" | "all";
@@ -70,7 +69,6 @@ export default function ClientList({ initialBranch }: ClientListProps) {
   const [tagFilter, setTagFilter] = useState<ClientTag | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const [textSearch, setTextSearch] = useState("");
-  const [aiResultIds, setAiResultIds] = useState<string[] | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | undefined>(undefined);
   const [showModal, setShowModal] = useState(false);
   const [showPhoto, setShowPhoto] = useState(false);
@@ -100,8 +98,7 @@ export default function ClientList({ initialBranch }: ClientListProps) {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  const filtered = clients.filter((c) => {
-    if (aiResultIds !== null) return aiResultIds.includes(c.id);
+  const sorted = clients.filter((c) => {
     const tags = deriveTags(c);
     if (tagFilter && !tags.includes(tagFilter)) return false;
     if (!inDateRange(c, dateRange)) return false;
@@ -115,10 +112,6 @@ export default function ClientList({ initialBranch }: ClientListProps) {
     }
     return true;
   });
-
-  const sorted = aiResultIds
-    ? filtered.sort((a, b) => aiResultIds.indexOf(a.id) - aiResultIds.indexOf(b.id))
-    : filtered;
 
   function openNew() {
     setSelectedClient(undefined);
@@ -171,15 +164,6 @@ export default function ClientList({ initialBranch }: ClientListProps) {
         className="px-4 sm:px-6 py-4 flex flex-col gap-3"
         style={{ borderBottom: "1px solid var(--line)" }}
       >
-        {/* AI search */}
-        <AISearchPanel
-          branch={branch}
-          clients={clients}
-          onResults={(ids) => setAiResultIds(ids)}
-          onClear={() => setAiResultIds(null)}
-          onFilterChange={(f) => setTagFilter(f)}
-        />
-
         {/* Text search + filter dropdown + action buttons */}
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
           <div className="flex gap-2 flex-1 min-w-0">
@@ -197,7 +181,6 @@ export default function ClientList({ initialBranch }: ClientListProps) {
               onChange={(e) =>
                 setTagFilter(e.target.value ? (e.target.value as ClientTag) : null)
               }
-              disabled={aiResultIds !== null}
             >
               <option value="">All clients</option>
               {TAG_OPTIONS.map((opt) => (
@@ -237,7 +220,6 @@ export default function ClientList({ initialBranch }: ClientListProps) {
               {" · "}${sorted.reduce((s, c) => s + totalSpend(c), 0).toLocaleString()} revenue
               {" · "}
               {sorted.filter((c) => deriveTags(c).includes("VIP")).length} VIP
-              {aiResultIds !== null && " — AI search active"}
             </>
           )}
         </span>
@@ -248,7 +230,6 @@ export default function ClientList({ initialBranch }: ClientListProps) {
             style={{ fontSize: "0.65rem", minWidth: "6.5rem" }}
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value as DateRange)}
-            disabled={aiResultIds !== null}
           >
             {DATE_RANGES.map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>
