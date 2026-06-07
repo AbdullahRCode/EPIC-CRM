@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { BRANCHES, type Branch } from "@/lib/types";
 import { BranchOwnerContext } from "@/lib/branch-context";
 
@@ -88,7 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
 
           {/* Right controls */}
-          <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {/* Branch picker */}
             <div className="flex items-center gap-1 sm:gap-2">
               <span className="label hidden sm:block">Branch</span>
@@ -133,6 +134,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               />
               Owner
             </button>
+
+            <SignOutButton />
           </div>
         </div>
       </header>
@@ -167,5 +170,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main className="flex-1 overflow-hidden">{children}</main>
       </BranchOwnerContext.Provider>
     </div>
+  );
+}
+
+function SignOutButton() {
+  const router = useRouter();
+  const supabase = createSupabaseBrowserClient();
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
+
+  return (
+    <button
+      onClick={signOut}
+      style={{
+        fontFamily: "var(--font-outfit), system-ui",
+        fontSize: "0.55rem",
+        letterSpacing: "0.2em",
+        textTransform: "uppercase",
+        color: "var(--muted)",
+        background: "none",
+        border: "none",
+        cursor: "pointer",
+        padding: "0.5rem",
+        minHeight: 44,
+      }}
+    >
+      Sign out
+    </button>
   );
 }

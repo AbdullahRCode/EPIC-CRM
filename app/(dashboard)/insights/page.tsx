@@ -5,7 +5,6 @@ import type { Client, Branch } from "@/lib/types";
 import { getClients } from "@/app/actions/clients";
 import { useBranchOwner } from "@/lib/branch-context";
 import BranchBars from "@/components/BranchBars";
-import TrendChart from "@/components/TrendChart";
 import DailySummary from "@/components/DailySummary";
 import DonutChart from "@/components/DonutChart";
 import { deriveTags } from "@/lib/types";
@@ -461,14 +460,6 @@ export default function InsightsPage() {
               ownerMode={ownerMode}
               activeBranch={branch}
             />
-          </div>
-
-          {/* Trend chart */}
-          <div
-            className="trend-chart-container overflow-x-auto"
-            style={{ WebkitOverflowScrolling: "touch" }}
-          >
-            <TrendChart clients={filteredClients} dateFrom={dateFrom} dateTo={dateTo} />
           </div>
 
         </div>
