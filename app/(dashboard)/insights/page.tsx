@@ -129,10 +129,8 @@ export default function InsightsPage() {
   );
 
   const vipCount = clients.filter((c) => deriveTags(c).includes("VIP")).length;
-  const coldCount = clients.filter((c) => deriveTags(c).includes("Cold")).length;
   const followUpCount = clients.filter((c) => c.follow_up?.needed).length;
   const alterationsReady = clients.filter((c) => c.alteration_status === "Ready").length;
-  const ordersArrived = clients.filter((c) => c.special_order_status === "Arrived").length;
 
   const PERF_STATS = [
     {
@@ -147,12 +145,10 @@ export default function InsightsPage() {
     },
   ];
 
-  const STATUS_STATS = [
-    { label: "VIP", value: String(vipCount), color: "var(--vip)" },
-    { label: "Cold (90d+)", value: String(coldCount), color: "var(--muted)" },
-    { label: "Follow-ups", value: String(followUpCount), color: "var(--danger)" },
-    { label: "Alt. ready", value: String(alterationsReady), color: "var(--good)" },
-    { label: "Orders arrived", value: String(ordersArrived), color: "var(--good)" },
+  const STATS = [
+    { label: "Follow-ups", value: followUpCount, color: "var(--danger)" },
+    { label: "Alt. Ready", value: alterationsReady, color: "var(--good)" },
+    { label: "VIP", value: vipCount, color: "var(--vip)" },
   ];
 
   // Revenue and client count by branch (for donut chart)
@@ -317,8 +313,8 @@ export default function InsightsPage() {
             </div>
 
             {/* Stats — Group 2: Status */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-0">
-              {STATUS_STATS.map((stat) => (
+            <div className="grid grid-cols-3 gap-0">
+              {STATS.map((stat) => (
                 <div
                   key={stat.label}
                   style={{

@@ -17,16 +17,12 @@ export async function middleware(request: NextRequest) {
         },
         set(name: string, value: string, options: Record<string, unknown>) {
           request.cookies.set({ name, value, ...options } as never);
-          response = NextResponse.next({
-            request: { headers: request.headers },
-          });
+          response = NextResponse.next({ request: { headers: request.headers } });
           response.cookies.set({ name, value, ...options } as never);
         },
         remove(name: string, options: Record<string, unknown>) {
           request.cookies.set({ name, value: "", ...options } as never);
-          response = NextResponse.next({
-            request: { headers: request.headers },
-          });
+          response = NextResponse.next({ request: { headers: request.headers } });
           response.cookies.set({ name, value: "", ...options } as never);
         },
       },
@@ -39,14 +35,30 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Allow login page and API routes always
-  if (pathname.startsWith("/login") || pathname.startsWith("/api")) {
+  // Always allow: login page, API routes, static assets
+  if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/_next")
+  ) {
     return response;
   }
 
-  // Redirect to login if not authenticated
+  // Not logged in → go to login
   if (!session) {
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  const role = session.user?.user_metadata?.role ?? "employee";
+
+  // Employee trying to access dashboard → redirect to intake
+  if (role === "employee" && !pathname.startsWith("/intake")) {
+    return NextResponse.redirect(new URL("/intake", request.url));
+  }
+
+  // Owner/admin trying to access intake → redirect to dashboard
+  if ((role === "owner" || role === "admin") && pathname.startsWith("/intake")) {
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   return response;
