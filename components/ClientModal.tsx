@@ -27,10 +27,11 @@ import MultiSelect from "./MultiSelect";
 const uid = () => crypto.randomUUID();
 
 interface ClientModalProps {
-  client?: Client;
-  defaultBranch?: Branch;
+  client?: Client | null;
+  defaultBranch?: string;
   onClose: () => void;
-  onSave: (client: Client) => void;
+  onSave?: (client: Client) => void;
+  onSaved?: () => void;
   onDelete?: (id: string) => void;
 }
 
@@ -104,18 +105,19 @@ export default function ClientModal({
   defaultBranch,
   onClose,
   onSave,
+  onSaved,
   onDelete,
 }: ClientModalProps) {
   const isNew = !initialClient;
 
   // New entry: quick form state
-  const [quick, setQuick] = useState<QuickForm>(() => initQuickForm(defaultBranch));
+  const [quick, setQuick] = useState<QuickForm>(() => initQuickForm(defaultBranch as Branch | undefined));
 
   // Edit mode: full form state with accordion
   const [form, setForm] = useState<Omit<Client, "id" | "tenant_id" | "created_at" | "updated_at">>(
     () => initialClient ? initEditForm(initialClient) : initEditForm({
       id: "", tenant_id: "", created_at: "", updated_at: "",
-      name: "", phone: "", branch: defaultBranch ?? "Surrey - Guildford",
+      name: "", phone: "", branch: (defaultBranch as Branch | undefined) ?? "Surrey - Guildford",
       events: [], alterations: [], follow_up: { needed: false }, visits: [],
     })
   );
@@ -274,7 +276,8 @@ export default function ClientModal({
       };
 
       const saved = await createClient(clientData);
-      onSave(saved);
+      onSave?.(saved);
+      onSaved?.();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -313,7 +316,8 @@ export default function ClientModal({
       }
 
       const saved = await updateClient(initialClient!.id, finalForm);
-      onSave(saved);
+      onSave?.(saved);
+      onSaved?.();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Save failed");
     } finally {
