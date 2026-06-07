@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import type { Client, Branch } from "@/lib/types";
 import { getClients } from "@/app/actions/clients";

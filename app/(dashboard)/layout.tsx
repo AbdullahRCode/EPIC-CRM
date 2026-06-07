@@ -175,9 +175,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 function SignOutButton() {
   const router = useRouter();
-  const supabase = createSupabaseBrowserClient();
 
   async function signOut() {
+    const supabase = createSupabaseBrowserClient();
     await supabase.auth.signOut();
     router.push("/login");
     router.refresh();
