@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
+const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY ?? process.env.PERPLEXITY_API_KEY_EPIC;
+console.log("Perplexity key present:", !!PERPLEXITY_API_KEY);
 
 // Full branch + local competitor map for EPIC Menswear
 const BRANCH_COMPETITORS = {
