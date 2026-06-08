@@ -140,7 +140,6 @@ export default function ClientModal({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const [cleaningNote, setCleaningNote] = useState(false);
   const [notifying, setNotifying] = useState(false);
 
   const tags = initialClient ? deriveTags({ ...initialClient, ...form } as Client) : [];
@@ -152,43 +151,6 @@ export default function ClientModal({
       else next.add(s);
       return next;
     });
-  }
-
-  // ── Helpers ──────────────────────────────────────────────────────────────
-
-  async function cleanNote(note: string, context: string): Promise<string> {
-    const res = await fetch("/api/ai/clean-note", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ note, context }),
-    });
-    const data = await res.json();
-    return data.uncertain ? note : (data.cleaned ?? note);
-  }
-
-  async function handleCleanNote() {
-    if (!form.alteration_note?.trim()) return;
-    setCleaningNote(true);
-    try {
-      const cleaned = await cleanNote(form.alteration_note, "alteration note");
-      setForm((f) => ({ ...f, alteration_note: cleaned }));
-    } finally {
-      setCleaningNote(false);
-    }
-  }
-
-  async function handleCleanVisitNote(idx: number) {
-    const visit = form.visits[idx];
-    if (!visit?.notes?.trim()) return;
-    setCleaningNote(true);
-    try {
-      const cleaned = await cleanNote(visit.notes, `visit on ${visit.date}`);
-      const updated = [...form.visits];
-      updated[idx] = { ...visit, notes: cleaned };
-      setForm((f) => ({ ...f, visits: updated }));
-    } finally {
-      setCleaningNote(false);
-    }
   }
 
   function addVisit() {
@@ -229,16 +191,7 @@ export default function ClientModal({
     setSaveError("");
 
     try {
-      let alterationNote = quick.alteration_details;
-
-      // Auto-clean alteration note
-      if (alterationNote.trim()) {
-        try {
-          alterationNote = await cleanNote(alterationNote, "alteration note");
-        } catch {
-          // non-fatal
-        }
-      }
+      const alterationNote = quick.alteration_details;
 
       const visit: Visit = {
         id: uid(),
@@ -302,15 +255,6 @@ export default function ClientModal({
           notes: newVisit.notes ?? "",
         };
         finalForm = { ...finalForm, visits: [...finalForm.visits, pending] };
-      }
-
-      if (finalForm.alteration_note?.trim()) {
-        try {
-          const cleaned = await cleanNote(finalForm.alteration_note, "alteration note");
-          finalForm = { ...finalForm, alteration_note: cleaned };
-        } catch {
-          // non-fatal
-        }
       }
 
       const saved = await updateClient(initialClient!.id, finalForm);
@@ -731,29 +675,9 @@ export default function ClientModal({
                             </span>
                           )}
                           {v.notes && (
-                            <div className="flex items-start gap-2">
-                              <p style={{ fontSize: "0.8rem", color: "var(--muted)", flex: 1 }}>
-                                {v.notes}
-                              </p>
-                              <button
-                                onClick={() => {
-                                  const idx = form.visits.findIndex((fv) => fv.id === v.id);
-                                  handleCleanVisitNote(idx);
-                                }}
-                                className="label"
-                                disabled={cleaningNote}
-                                style={{
-                                  background: "none",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  color: "var(--muted)",
-                                  fontSize: "0.55rem",
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {cleaningNote ? "Cleaning..." : "Clean with AI"}
-                              </button>
-                            </div>
+                            <p style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+                              {v.notes}
+                            </p>
                           )}
                           {v.staff && (
                             <span className="label" style={{ color: "var(--muted)" }}>
@@ -880,24 +804,7 @@ export default function ClientModal({
                 {form.alterations.length > 0 && (
                   <>
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="label">Alteration note</p>
-                        <button
-                          type="button"
-                          onClick={handleCleanNote}
-                          disabled={cleaningNote || !form.alteration_note?.trim()}
-                          className="label"
-                          style={{
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            color: "var(--muted)",
-                            fontSize: "0.55rem",
-                          }}
-                        >
-                          {cleaningNote ? "Cleaning..." : "Clean with AI"}
-                        </button>
-                      </div>
+                      <p className="label mb-1">Alteration note</p>
                       <textarea
                         className="input-line"
                         rows={3}
