@@ -27,6 +27,13 @@ interface PhotoExtractResult {
 interface EntryEdit extends PhotoExtractResult {
   include: boolean;
   branch: Branch;
+  purchase_item?: string | null;
+  amount_paid?: number | null;
+  alteration_details?: string | null;
+  alteration_date_promised?: string | null;
+  fit_notes?: string | null;
+  employee?: string | null;
+  remarks?: string | null;
 }
 
 interface PhotoIntakeProps {
@@ -134,6 +141,14 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
 
   const selectedCount = entries.filter((e) => e.include).length;
 
+  function updateEntry(index: number, field: string, value: unknown) {
+    setEntries((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value } as EntryEdit;
+      return next;
+    });
+  }
+
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div
@@ -199,10 +214,6 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
           {/* Extracted entries */}
           {entries.length > 0 && (
             <>
-              {pageNotes && (
-                <p className="label" style={{ color: "var(--muted)" }}>{pageNotes}</p>
-              )}
-
               <p className="section-title">
                 Extracted entries{" "}
                 <span style={{ fontStyle: "normal", fontSize: "0.75rem" }}>
@@ -222,94 +233,77 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
                     }}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex flex-col gap-1 flex-1">
+                      <div className="flex-1">
                         {entry.uncertain && (
                           <span className="label" style={{ color: "var(--danger)", fontSize: "0.55rem" }}>
                             Uncertain — please verify
                           </span>
                         )}
-                        <input
-                          className="input-line"
-                          value={entry.name}
-                          onChange={(e) => {
-                            const next = [...entries];
-                            next[i] = { ...entry, name: e.target.value };
-                            setEntries(next);
-                          }}
-                          placeholder="Name"
-                          style={{ fontWeight: 500 }}
-                        />
                       </div>
                       <input
                         type="checkbox"
                         checked={entry.include}
-                        onChange={(e) => {
-                          const next = [...entries];
-                          next[i] = { ...entry, include: e.target.checked };
-                          setEntries(next);
-                        }}
+                        onChange={(e) => updateEntry(i, "include", e.target.checked)}
                         style={{ accentColor: "var(--ink)", width: 16, height: 16, flexShrink: 0, marginTop: 6 }}
                       />
                     </div>
 
-                    <input
-                      className="input-line"
-                      value={entry.phone ?? ""}
-                      onChange={(e) => {
-                        const next = [...entries];
-                        next[i] = { ...entry, phone: e.target.value };
-                        setEntries(next);
-                      }}
-                      placeholder="Phone"
-                    />
-
-                    <select
-                      className="input-line"
-                      value={entry.branch}
-                      onChange={(e) => {
-                        const next = [...entries];
-                        next[i] = { ...entry, branch: e.target.value as Branch };
-                        setEntries(next);
-                      }}
-                    >
-                      {BRANCHES.map((b) => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                    </select>
-
-                    {/* Structured fields preview */}
-                    <div className="flex flex-col gap-1.5">
-                      {entry.visit_date && (
-                        <p className="label" style={{ color: "var(--muted)", fontSize: "0.6rem" }}>
-                          Date: {entry.visit_date}
-                        </p>
-                      )}
-                      {entry.purchase_item && (
-                        <p style={{ fontSize: "0.8rem" }}>{entry.purchase_item}</p>
-                      )}
-                      {entry.amount_paid != null && (
-                        <p className="label" style={{ color: "var(--good)" }}>
-                          ${entry.amount_paid.toLocaleString()}
-                        </p>
-                      )}
-                      {entry.alteration_needed && (
-                        <p className="label" style={{ color: "var(--warn)", fontSize: "0.58rem" }}>
-                          Alteration: {entry.alteration_details ?? "needed"}
-                          {entry.alteration_date_promised ? ` — ready ${entry.alteration_date_promised}` : ""}
-                        </p>
-                      )}
-                      {entry.fit_notes && (
-                        <p className="label" style={{ color: "var(--muted)", fontSize: "0.58rem" }}>
-                          Fit: {entry.fit_notes}
-                        </p>
-                      )}
+                    <div>
+                      <label className="label" style={{ display: "block", marginBottom: "0.25rem", color: "var(--muted)", fontSize: "0.55rem" }}>Name *</label>
+                      <input className="input-line" value={entry.name} onChange={(e) => updateEntry(i, "name", e.target.value)} placeholder="Customer name" style={{ fontWeight: 500 }} />
                     </div>
 
-                    {entry.raw_text && (
-                      <p className="label" style={{ color: "var(--muted)", fontStyle: "italic", fontSize: "0.55rem" }}>
-                        Raw: {entry.raw_text}
-                      </p>
-                    )}
+                    <div>
+                      <label className="label" style={{ display: "block", marginBottom: "0.25rem", color: "var(--muted)", fontSize: "0.55rem" }}>Phone</label>
+                      <input className="input-line" value={entry.phone ?? ""} onChange={(e) => updateEntry(i, "phone", e.target.value)} placeholder="Phone number" />
+                    </div>
+
+                    <div>
+                      <label className="label" style={{ display: "block", marginBottom: "0.25rem", color: "var(--muted)", fontSize: "0.55rem" }}>Email</label>
+                      <input className="input-line" type="email" value={entry.email ?? ""} onChange={(e) => updateEntry(i, "email", e.target.value)} placeholder="Email (optional)" />
+                    </div>
+
+                    <div>
+                      <label className="label" style={{ display: "block", marginBottom: "0.25rem", color: "var(--muted)", fontSize: "0.55rem" }}>Branch</label>
+                      <select className="input-line" value={entry.branch} onChange={(e) => updateEntry(i, "branch", e.target.value as Branch)}>
+                        {BRANCHES.map((b) => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="label" style={{ display: "block", marginBottom: "0.25rem", color: "var(--muted)", fontSize: "0.55rem" }}>Purchase item</label>
+                      <input className="input-line" value={entry.purchase_item ?? ""} onChange={(e) => updateEntry(i, "purchase_item", e.target.value)} placeholder="e.g. Calvin Klein Black Slim Fit Full Suit" />
+                    </div>
+
+                    <div>
+                      <label className="label" style={{ display: "block", marginBottom: "0.25rem", color: "var(--muted)", fontSize: "0.55rem" }}>Amount paid ($)</label>
+                      <input className="input-line" type="number" value={entry.amount_paid ?? ""} onChange={(e) => updateEntry(i, "amount_paid", parseFloat(e.target.value) || null)} placeholder="0.00" />
+                    </div>
+
+                    <div>
+                      <label className="label" style={{ display: "block", marginBottom: "0.25rem", color: "var(--muted)", fontSize: "0.55rem" }}>Alteration details</label>
+                      <textarea className="input-line" rows={2} value={entry.alteration_details ?? ""} onChange={(e) => updateEntry(i, "alteration_details", e.target.value)} placeholder="e.g. Hem pants 1 inch, take in sleeves" style={{ resize: "vertical" }} />
+                    </div>
+
+                    <div>
+                      <label className="label" style={{ display: "block", marginBottom: "0.25rem", color: "var(--muted)", fontSize: "0.55rem" }}>Ready by date</label>
+                      <input className="input-line" type="date" value={entry.alteration_date_promised ?? ""} onChange={(e) => updateEntry(i, "alteration_date_promised", e.target.value)} />
+                    </div>
+
+                    <div>
+                      <label className="label" style={{ display: "block", marginBottom: "0.25rem", color: "var(--muted)", fontSize: "0.55rem" }}>Size / fit notes</label>
+                      <input className="input-line" value={entry.fit_notes ?? ""} onChange={(e) => updateEntry(i, "fit_notes", e.target.value)} placeholder="e.g. 42R fits well" />
+                    </div>
+
+                    <div>
+                      <label className="label" style={{ display: "block", marginBottom: "0.25rem", color: "var(--muted)", fontSize: "0.55rem" }}>Employee</label>
+                      <input className="input-line" value={entry.employee ?? ""} onChange={(e) => updateEntry(i, "employee", e.target.value)} placeholder="Staff name" />
+                    </div>
+
+                    <div>
+                      <label className="label" style={{ display: "block", marginBottom: "0.25rem", color: "var(--muted)", fontSize: "0.55rem" }}>Remarks</label>
+                      <input className="input-line" value={entry.remarks ?? ""} onChange={(e) => updateEntry(i, "remarks", e.target.value)} placeholder="Any other notes" />
+                    </div>
                   </div>
                 ))}
               </div>

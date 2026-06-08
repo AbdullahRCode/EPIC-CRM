@@ -283,7 +283,7 @@ export default function IntakePage() {
                     disabled={markingReady === client.id}
                     style={{ fontSize: "0.55rem", padding: "0.4rem 0.75rem", letterSpacing: "0.12em", flexShrink: 0, borderColor: "var(--good)", color: "var(--good)" }}
                   >
-                    {markingReady === client.id ? "…" : "Hem Ready"}
+                    {markingReady === client.id ? "…" : "Alteration Ready"}
                   </button>
                 )}
               </div>

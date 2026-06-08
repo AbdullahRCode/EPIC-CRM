@@ -5,7 +5,6 @@ import type {
   Client,
   Branch,
   VisitReason,
-  EventType,
   AlterationItem,
   AlterationStatus,
   SpecialOrderStatus,
@@ -14,7 +13,6 @@ import type {
 import {
   BRANCHES,
   VISIT_REASONS,
-  EVENT_TYPES,
   ALTERATION_ITEMS,
   ALTERATION_STATUSES,
   SPECIAL_ORDER_STATUSES,
@@ -98,7 +96,7 @@ function initEditForm(c: Client): Omit<Client, "id" | "tenant_id" | "created_at"
   };
 }
 
-type AccordionSection = "identity" | "visit" | "events" | "alterations" | "order" | "followup" | "measurements";
+type AccordionSection = "identity" | "visit" | "alterations" | "order" | "followup";
 
 export default function ClientModal({
   client: initialClient,
@@ -326,7 +324,7 @@ export default function ClientModal({
   }
 
   async function handleDelete() {
-    if (!initialClient || !confirm("Delete this client? This cannot be undone.")) return;
+    if (!initialClient || !window.confirm("Delete this client? This cannot be undone.")) return;
     setDeleting(true);
     try {
       await deleteClient(initialClient.id);
@@ -352,7 +350,7 @@ export default function ClientModal({
     return (
       <button
         onClick={() => toggleSection(id)}
-        className="flex items-center justify-between w-full py-3"
+        className="flex items-center justify-between w-full py-2"
         style={{
           background: "none",
           border: "none",
@@ -362,7 +360,7 @@ export default function ClientModal({
         }}
       >
         <div className="flex items-center gap-2">
-          <span className="font-serif" style={{ fontSize: "1rem", fontStyle: "italic" }}>
+          <span className="font-serif" style={{ fontSize: "0.9rem", fontStyle: "italic" }}>
             {label}
           </span>
           {badge && (
@@ -371,7 +369,7 @@ export default function ClientModal({
             </span>
           )}
         </div>
-        <span className="label" style={{ color: "var(--muted)", fontSize: "0.7rem" }}>
+        <span className="label" style={{ color: "var(--muted)", fontSize: "0.55rem", letterSpacing: "0.12em" }}>
           {open ? "▾" : "▸"}
         </span>
       </button>
@@ -381,11 +379,13 @@ export default function ClientModal({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay" style={{ overflowY: "auto" }} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div
         className="slide-right h-full overflow-y-auto flex flex-col"
         style={{
-          width: "min(520px, 100vw)",
+          width: "min(480px, 100vw)",
+          maxHeight: "100vh",
+          overflowY: "auto",
           background: "var(--paper)",
           borderLeft: "1px solid var(--line)",
         }}
@@ -859,48 +859,6 @@ export default function ClientModal({
               </div>
             )}
 
-            {/* Events */}
-            <SectionHeader
-              id="events"
-              label="Events"
-              badge={form.events.length > 0 ? form.events.join(", ") : undefined}
-            />
-            {openSections.has("events") && (
-              <div className="flex flex-col gap-5 py-5">
-                <MultiSelect
-                  options={EVENT_TYPES}
-                  value={form.events}
-                  onChange={(v) => setForm((f) => ({ ...f, events: v as EventType[] }))}
-                  label="Event types"
-                />
-                {form.events.length > 0 && (
-                  <>
-                    <div>
-                      <p className="label mb-1">Event date</p>
-                      <input
-                        type="date"
-                        className="input-line"
-                        value={form.event_date ?? ""}
-                        onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))}
-                        style={{ minHeight: 44 }}
-                      />
-                    </div>
-                    <div>
-                      <p className="label mb-1">Event note</p>
-                      <textarea
-                        className="input-line"
-                        rows={3}
-                        placeholder="Wedding venue, dress code, party size..."
-                        value={form.event_note ?? ""}
-                        onChange={(e) => setForm((f) => ({ ...f, event_note: e.target.value }))}
-                        style={{ resize: "vertical" }}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
             {/* Alterations */}
             <SectionHeader
               id="alterations"
@@ -1151,54 +1109,11 @@ export default function ClientModal({
               </div>
             )}
 
-            {/* Measurements */}
-            <SectionHeader id="measurements" label="Measurements" />
-            {openSections.has("measurements") && (
-              <div className="flex flex-col gap-5 py-5">
-                <p className="font-serif" style={{ fontStyle: "italic", color: "var(--muted)" }}>
-                  Measurements are optional and stored securely.
-                </p>
-                {(["chest", "waist", "sleeve", "inseam", "neck", "shoulder"] as const).map(
-                  (key) => (
-                    <div key={key}>
-                      <p className="label mb-1">
-                        {key.charAt(0).toUpperCase() + key.slice(1)}
-                      </p>
-                      <input
-                        className="input-line"
-                        placeholder='e.g. 40" or 101cm'
-                        value={form.measurements?.[key] ?? ""}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            measurements: { ...f.measurements, [key]: e.target.value },
-                          }))
-                        }
-                        style={{ minHeight: 44 }}
-                      />
-                    </div>
-                  )
-                )}
-                <div>
-                  <p className="label mb-1">Measurement notes</p>
-                  <textarea
-                    className="input-line"
-                    rows={3}
-                    placeholder="Any fitting notes..."
-                    value={form.measurements?.notes ?? ""}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        measurements: { ...f.measurements, notes: e.target.value },
-                      }))
-                    }
-                    style={{ resize: "vertical" }}
-                  />
-                </div>
-              </div>
-            )}
           </div>
         )}
+
+        {/* AI Note */}
+        {!isNew && <ClientAINote client={form} />}
 
         {/* Footer */}
         <div
@@ -1210,7 +1125,7 @@ export default function ClientModal({
               {saveError}
             </p>
           )}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
             {!isNew && (
               <button
                 onClick={handleDelete}
@@ -1221,7 +1136,7 @@ export default function ClientModal({
                 {deleting ? "Deleting..." : "Delete"}
               </button>
             )}
-            <div className="flex gap-2 sm:ml-auto">
+            <div className="flex gap-2" style={{ marginLeft: "auto" }}>
               <button
                 onClick={onClose}
                 className="btn btn-ghost flex-1 sm:flex-none"
@@ -1250,6 +1165,95 @@ export default function ClientModal({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ClientAINote({ client }: { client: Partial<Client> }) {
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [generated, setGenerated] = useState(false);
+
+  async function generate() {
+    setLoading(true);
+    try {
+      const visits = client.visits ?? [];
+      const totalSpend = visits.reduce((s, v) => s + (v.spend ?? 0), 0);
+      const lastVisit = visits.length
+        ? new Date(visits.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date)
+            .toLocaleDateString("en-CA", { month: "short", day: "numeric" })
+        : null;
+
+      const prompt = `You are the EPIC Menswear CRM assistant. Write a 1-2 sentence smart note about this client for the store staff. Be specific and actionable. Mention their history, what they bought, any alterations, and suggest a follow-up action if relevant.
+
+Client: ${client.name}
+Branch: ${client.branch}
+Total spend: $${totalSpend}
+Visits: ${visits.length}
+Last visit: ${lastVisit ?? "unknown"}
+Alteration status: ${client.alteration_status ?? "none"}
+Alteration note: ${client.alteration_note ?? "none"}
+Follow-up needed: ${client.follow_up?.needed ? "yes — " + (client.follow_up.reason ?? "") : "no"}
+
+Write only the note, no preamble.`;
+
+      const res = await fetch("/api/ai/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: prompt, mode: "note" }),
+      });
+      const data = await res.json();
+      const text = data.result ?? data.summary ?? data.text ?? "";
+      setNote(text);
+      setGenerated(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={{
+      borderTop: "1px solid var(--line)",
+      padding: "1rem 1.5rem",
+      background: "var(--paper-2)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+        <p className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>✦ AI Note</p>
+        {!generated && (
+          <button
+            onClick={generate}
+            disabled={loading}
+            className="label"
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--muted)",
+              fontSize: "0.55rem",
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+            }}
+          >
+            {loading ? "Thinking..." : "Generate"}
+          </button>
+        )}
+      </div>
+      {generated && note && (
+        <p style={{
+          fontSize: "0.82rem",
+          color: "var(--ink)",
+          fontStyle: "italic",
+          fontFamily: "var(--font-serif), Georgia, serif",
+          lineHeight: 1.6,
+        }}>
+          {note}
+        </p>
+      )}
+      {!generated && !loading && (
+        <p style={{ fontSize: "0.75rem", color: "var(--muted)", fontStyle: "italic" }}>
+          Tap generate for an AI summary of this client.
+        </p>
+      )}
     </div>
   );
 }
