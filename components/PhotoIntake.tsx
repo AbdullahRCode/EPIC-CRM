@@ -47,7 +47,6 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
   const [extracting, setExtracting] = useState(false);
   const [entries, setEntries] = useState<EntryEdit[]>([]);
   const [importing, setImporting] = useState(false);
-  const [pageNotes, setPageNotes] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function processImage(file: File) {
@@ -67,7 +66,6 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
         branch: (e.branch as Branch) ?? defaultBranch ?? "Surrey - Guildford",
       }));
       setEntries(editable);
-      setPageNotes(data.page_notes ?? "");
     } catch (err) {
       console.error(err);
     } finally {

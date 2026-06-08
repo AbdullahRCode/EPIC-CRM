@@ -9,6 +9,7 @@ import { useBranchOwner } from "@/lib/branch-context";
 import BranchBars from "@/components/BranchBars";
 import DailySummary from "@/components/DailySummary";
 import DonutChart from "@/components/DonutChart";
+import CompetitorIntel from "@/components/CompetitorIntel";
 import { deriveTags } from "@/lib/types";
 
 type DatePreset = "yesterday" | "today" | "week" | "month" | "all" | "custom";
@@ -459,6 +460,9 @@ export default function InsightsPage() {
               activeBranch={branch}
             />
           </div>
+
+          {/* Competitor intelligence */}
+          <CompetitorIntel ownerMode={ownerMode} activeBranch={branch} />
 
         </div>
       )}
