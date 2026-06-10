@@ -9,7 +9,6 @@ import { useBranchOwner } from "@/lib/branch-context";
 import BranchBars from "@/components/BranchBars";
 import DailySummary from "@/components/DailySummary";
 import DonutChart from "@/components/DonutChart";
-import CompetitorIntel from "@/components/CompetitorIntel";
 import { deriveTags } from "@/lib/types";
 
 type DatePreset = "yesterday" | "today" | "week" | "month" | "all" | "custom";
@@ -225,13 +224,27 @@ export default function InsightsPage() {
             {branch === "All" ? "All branches" : branch} — performance at a glance
           </p>
         </div>
-        <button
-          className="btn btn-ghost insights-export-btn flex-shrink-0"
-          onClick={() => window.print()}
-          style={{ alignSelf: "center" }}
-        >
-          Export Report
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <button
+            className="btn btn-ghost insights-export-btn flex-shrink-0"
+            onClick={() => window.print()}
+          >
+            Export Report
+          </button>
+          {ownerMode && (
+            <button
+              className="btn btn-ghost"
+              onClick={async () => {
+                const res = await fetch(`/api/reports/daily?secret=${process.env.NEXT_PUBLIC_REPORT_SECRET ?? "epic-report-2026"}&type=daily`);
+                if (res.ok) alert("Daily report sent to owner email.");
+                else alert("Failed to send report — check Resend API key in Vercel.");
+              }}
+              style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}
+            >
+              ✉ Send Daily Report
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Date range picker */}
@@ -460,9 +473,6 @@ export default function InsightsPage() {
               activeBranch={branch}
             />
           </div>
-
-          {/* Competitor intelligence */}
-          <CompetitorIntel ownerMode={ownerMode} activeBranch={branch} />
 
         </div>
       )}

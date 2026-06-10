@@ -2,5 +2,15 @@
   "framework": "nextjs",
   "buildCommand": "next build",
   "devCommand": "next dev",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/reports/daily?secret=epic-report-2026&type=daily",
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/reports/daily?secret=epic-report-2026&type=weekly",
+      "schedule": "0 8 * * 5"
+    }
+  ]
 }

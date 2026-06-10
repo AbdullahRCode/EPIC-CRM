@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { deriveTags } from "@/lib/types";
 import ClientModal from "@/components/ClientModal";
 import PhotoIntake from "@/components/PhotoIntake";
+import AnonymousSales from "@/components/AnonymousSales";
 
 type FilterTab = "all" | "followup" | "altready" | "vip";
 
@@ -37,6 +38,7 @@ export default function IntakePage() {
   const [showModal, setShowModal] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showPhoto, setShowPhoto] = useState(false);
+  const [showAnon, setShowAnon] = useState(false);
 
   useEffect(() => {
     getUserProfile().then(async (p) => {
@@ -224,6 +226,13 @@ export default function IntakePage() {
         </button>
         <button
           className="btn label"
+          onClick={() => setShowAnon(true)}
+          style={{ whiteSpace: "nowrap", fontSize: "0.6rem", padding: "0.5rem 1rem" }}
+        >
+          + Anon Sale
+        </button>
+        <button
+          className="btn label"
           onClick={() => setShowPhoto(true)}
           style={{ fontSize: "0.65rem", padding: "0.5rem 1rem", letterSpacing: "0.15em" }}
         >
@@ -361,6 +370,37 @@ export default function IntakePage() {
             addToast("Client saved.");
           }}
         />
+      )}
+
+      {/* Anonymous sale overlay */}
+      {showAnon && profile && (
+        <div style={{
+          position: "fixed", inset: 0,
+          background: "rgba(10,10,10,0.5)",
+          zIndex: 100,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "1rem",
+        }}>
+          <div style={{
+            background: "var(--paper)",
+            border: "1px solid var(--line)",
+            padding: "1.5rem",
+            maxWidth: 480,
+            width: "100%",
+            maxHeight: "85vh",
+            overflowY: "auto",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <p className="label" style={{ color: "var(--ink)", fontSize: "0.6rem" }}>ANONYMOUS SALE · {profile.branch.toUpperCase()}</p>
+              <button onClick={() => setShowAnon(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.2rem", color: "var(--muted)" }}>×</button>
+            </div>
+            <AnonymousSales
+              ownerMode={false}
+              branch={profile.branch as Branch}
+              employeeBranch={profile.branch}
+            />
+          </div>
+        </div>
       )}
 
       {/* Photo intake overlay */}

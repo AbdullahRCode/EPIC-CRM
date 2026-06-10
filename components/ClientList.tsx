@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Client, Branch, ClientTag } from "@/lib/types";
 import { deriveTags } from "@/lib/types";
 import { getClients } from "@/app/actions/clients";
+import { useBranchOwner } from "@/lib/branch-context";
 import ClientModal from "./ClientModal";
 import PhotoIntake from "./PhotoIntake";
+import AnonymousSales from "./AnonymousSales";
 
 type DateRange = "today" | "week" | "month" | "all";
 
@@ -53,6 +55,7 @@ const TAG_OPTIONS: { label: string; value: ClientTag }[] = [
   { label: "Cold (90+ days)", value: "Cold" },
   { label: "Special Order (active)", value: "Special Order" },
   { label: "Events upcoming", value: "Events" },
+  { label: "Inquiries", value: "Inquiry" },
 ];
 
 const DATE_RANGES = [
@@ -63,6 +66,7 @@ const DATE_RANGES = [
 ];
 
 export default function ClientList({ initialBranch }: ClientListProps) {
+  const { ownerMode } = useBranchOwner();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [branch, setBranch] = useState<Branch | "All">(initialBranch);
@@ -442,6 +446,13 @@ export default function ClientList({ initialBranch }: ClientListProps) {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Anonymous sales */}
+        {!loading && (
+          <div className="px-4 sm:px-6">
+            <AnonymousSales ownerMode={ownerMode} branch={branch} />
           </div>
         )}
       </div>

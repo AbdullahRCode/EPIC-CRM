@@ -19,29 +19,13 @@ export const DEFAULT_TENANT = "epic-menswear";
 
 export type VisitReason =
   | "Walk-in (purchased)"
-  | "Walk-in (no purchase)"
-  | "Inquiry general"
-  | "Inquiry colour"
-  | "Inquiry style"
-  | "Fitting"
-  | "Alteration drop-off"
-  | "Alteration pickup"
-  | "Special order"
-  | "Pickup"
-  | "Other";
+  | "Walk-in (inquiry)"
+  | "Walk-in (no purchase)";
 
 export const VISIT_REASONS: VisitReason[] = [
   "Walk-in (purchased)",
+  "Walk-in (inquiry)",
   "Walk-in (no purchase)",
-  "Inquiry general",
-  "Inquiry colour",
-  "Inquiry style",
-  "Fitting",
-  "Alteration drop-off",
-  "Alteration pickup",
-  "Special order",
-  "Pickup",
-  "Other",
 ];
 
 export type EventType = "Wedding" | "Prom" | "Grad" | "Funeral" | "Work" | "Other";
@@ -133,7 +117,8 @@ export type ClientTag =
   | "Events"
   | "Alterations"
   | "Special Order"
-  | "Follow-up";
+  | "Follow-up"
+  | "Inquiry";
 
 export function deriveTags(client: Client): ClientTag[] {
   const tags: ClientTag[] = [];
@@ -155,6 +140,8 @@ export function deriveTags(client: Client): ClientTag[] {
   if (client.special_order && client.special_order_status !== "Picked up")
     tags.push("Special Order");
   if (client.follow_up?.needed) tags.push("Follow-up");
+  const hasInquiry = client.visits.some((v) => v.reason === "Walk-in (inquiry)");
+  if (hasInquiry) tags.push("Inquiry");
 
   return tags;
 }

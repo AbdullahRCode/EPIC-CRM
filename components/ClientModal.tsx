@@ -13,14 +13,12 @@ import type {
 import {
   BRANCHES,
   VISIT_REASONS,
-  ALTERATION_ITEMS,
   ALTERATION_STATUSES,
   SPECIAL_ORDER_STATUSES,
   deriveTags,
 } from "@/lib/types";
 import { createClient, updateClient, deleteClient } from "@/app/actions/clients";
 import StatusPipeline from "./StatusPipeline";
-import MultiSelect from "./MultiSelect";
 
 const uid = () => crypto.randomUUID();
 
@@ -36,6 +34,7 @@ interface ClientModalProps {
 // Simplified quick-entry form state for NEW clients
 interface QuickForm {
   visit_date: string;
+  reason: VisitReason;
   name: string;
   phone: string;
   email: string;
@@ -43,6 +42,8 @@ interface QuickForm {
   employee: string;
   purchase: string;
   amount: string;
+  event_date: string;
+  event_note: string;
   alteration_needed: boolean;
   alteration_date: string;
   alteration_details: string;
@@ -59,6 +60,7 @@ function todayStr() {
 function initQuickForm(defaultBranch?: Branch): QuickForm {
   return {
     visit_date: todayStr(),
+    reason: "Walk-in (purchased)",
     name: "",
     phone: "",
     email: "",
@@ -66,6 +68,8 @@ function initQuickForm(defaultBranch?: Branch): QuickForm {
     employee: "",
     purchase: "",
     amount: "",
+    event_date: "",
+    event_note: "",
     alteration_needed: false,
     alteration_date: "",
     alteration_details: "",
@@ -140,8 +144,6 @@ export default function ClientModal({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const [notifying, setNotifying] = useState(false);
-
   const tags = initialClient ? deriveTags({ ...initialClient, ...form } as Client) : [];
 
   function toggleSection(s: AccordionSection) {
@@ -169,20 +171,6 @@ export default function ClientModal({
     setAddingVisit(false);
   }
 
-  async function handleSendEmail(statusType: string) {
-    if (!initialClient) return;
-    setNotifying(true);
-    try {
-      await fetch("/api/comms/send-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: initialClient.id, statusType }),
-      });
-    } finally {
-      setNotifying(false);
-    }
-  }
-
   // ── Save handlers ─────────────────────────────────────────────────────────
 
   async function handleQuickSave() {
@@ -196,7 +184,7 @@ export default function ClientModal({
       const visit: Visit = {
         id: uid(),
         date: quick.visit_date || todayStr(),
-        reason: "Walk-in (purchased)",
+        reason: quick.reason,
         items: quick.purchase,
         spend: quick.amount ? Number(quick.amount) : undefined,
         staff: quick.employee,
@@ -209,10 +197,8 @@ export default function ClientModal({
         email: quick.email.trim(),
         branch: quick.branch,
         events: [],
-        event_date: undefined,
-        event_note: quick.alteration_date
-          ? `Alt ready: ${quick.alteration_date}`
-          : "",
+        event_date: quick.event_date || undefined,
+        event_note: quick.event_note || (quick.alteration_date ? `Alt ready: ${quick.alteration_date}` : ""),
         alterations: quick.alteration_needed ? (["Other"] as AlterationItem[]) : [],
         alteration_note: alterationNote,
         alteration_status: quick.alteration_needed ? "Received" : undefined,
@@ -388,7 +374,77 @@ export default function ClientModal({
               />
             </div>
 
-            {/* 2. Customer name */}
+            {/* 2. Visit type */}
+            <div>
+              <p className="label" style={{ color: "var(--muted)", marginBottom: "0.5rem", fontSize: "0.55rem" }}>
+                VISIT TYPE
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                {(["Walk-in (purchased)", "Walk-in (inquiry)", "Walk-in (no purchase)"] as VisitReason[]).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setQuick((q) => ({ ...q, reason: r }))}
+                    style={{
+                      fontFamily: "var(--font-outfit)",
+                      fontSize: "0.6rem",
+                      letterSpacing: "0.15em",
+                      textTransform: "uppercase",
+                      padding: "0.5rem 0.75rem",
+                      border: "1px solid",
+                      borderColor: quick.reason === r ? "var(--ink)" : "var(--line)",
+                      background: quick.reason === r ? "var(--ink)" : "transparent",
+                      color: quick.reason === r ? "var(--paper)" : "var(--muted)",
+                      cursor: "pointer",
+                      transition: "all 0.15s",
+                      minHeight: 36,
+                    }}
+                  >
+                    {r === "Walk-in (purchased)" ? "Purchase" : r === "Walk-in (inquiry)" ? "Inquiry" : "No Purchase"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Inquiry fields */}
+            {quick.reason === "Walk-in (inquiry)" && (
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.75rem",
+                padding: "0.875rem",
+                background: "var(--paper-2)",
+                border: "1px solid var(--line)",
+              }}>
+                <p className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>
+                  INQUIRY DETAILS
+                </p>
+                <div>
+                  <label className="label" style={{ display: "block", marginBottom: "0.25rem", color: "var(--muted)", fontSize: "0.55rem" }}>
+                    Event date
+                  </label>
+                  <input
+                    className="input-line"
+                    type="date"
+                    value={quick.event_date}
+                    onChange={(e) => setQuick((q) => ({ ...q, event_date: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="label" style={{ display: "block", marginBottom: "0.25rem", color: "var(--muted)", fontSize: "0.55rem" }}>
+                    What do they need?
+                  </label>
+                  <input
+                    className="input-line"
+                    placeholder="e.g. wedding suit for 2 guests, budget ~$800"
+                    value={quick.event_note}
+                    onChange={(e) => setQuick((q) => ({ ...q, event_note: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 3. Customer name */}
             <div>
               <p className="label mb-1">Customer name *</p>
               <input
@@ -795,86 +851,30 @@ export default function ClientModal({
             />
             {openSections.has("alterations") && (
               <div className="flex flex-col gap-5 py-5">
-                <MultiSelect
-                  options={ALTERATION_ITEMS}
-                  value={form.alterations}
-                  onChange={(v) => setForm((f) => ({ ...f, alterations: v as AlterationItem[] }))}
-                  label="Alteration items"
-                />
-                {form.alterations.length > 0 && (
-                  <>
-                    <div>
-                      <p className="label mb-1">Alteration note</p>
-                      <textarea
-                        className="input-line"
-                        rows={3}
-                        placeholder="Specific alteration instructions..."
-                        value={form.alteration_note ?? ""}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, alteration_note: e.target.value }))
-                        }
-                        style={{ resize: "vertical" }}
-                      />
-                    </div>
-                    <div>
-                      <p className="label mb-2">Status</p>
-                      <StatusPipeline
-                        stages={ALTERATION_STATUSES}
-                        current={form.alteration_status ?? "Received"}
-                        onChange={(s) =>
-                          setForm((f) => ({ ...f, alteration_status: s as AlterationStatus }))
-                        }
-                        colorScheme="good"
-                      />
-                    </div>
-
-                    {form.alteration_status === "Ready" && !isNew && (
-                      <div
-                        className="flex flex-col gap-2 p-4"
-                        style={{ background: "#1f5a3208", border: "1px solid var(--good)" }}
-                      >
-                        <p className="label" style={{ color: "var(--good)" }}>
-                          Alterations ready — notify client
-                        </p>
-                        <div className="flex gap-2 flex-wrap">
-                          <a
-                            href={`https://wa.me/${form.phone.replace(/\D/g, "")}?text=${encodeURIComponent(
-                              `Hi ${form.name}, your alterations at EPIC Menswear ${form.branch} are ready for pickup. We look forward to seeing you.`
-                            )}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn"
-                            style={{
-                              borderColor: "#25d366",
-                              color: "#25d366",
-                              textDecoration: "none",
-                            }}
-                          >
-                            WhatsApp
-                          </a>
-                          <a
-                            href={`sms:${form.phone}?body=${encodeURIComponent(
-                              `Hi ${form.name}, your alterations at EPIC Menswear ${form.branch} are ready for pickup.`
-                            )}`}
-                            className="btn btn-ghost"
-                            style={{ textDecoration: "none" }}
-                          >
-                            SMS
-                          </a>
-                          {form.email && (
-                            <button
-                              onClick={() => handleSendEmail("alteration_ready")}
-                              className="btn btn-ghost"
-                              disabled={notifying}
-                            >
-                              {notifying ? "Sending..." : "Email"}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
+                <div>
+                  <p className="label mb-1">Alteration note</p>
+                  <textarea
+                    className="input-line"
+                    rows={3}
+                    placeholder="Specific alteration instructions..."
+                    value={form.alteration_note ?? ""}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, alteration_note: e.target.value }))
+                    }
+                    style={{ resize: "vertical" }}
+                  />
+                </div>
+                <div>
+                  <p className="label mb-2">Status</p>
+                  <StatusPipeline
+                    stages={ALTERATION_STATUSES}
+                    current={form.alteration_status ?? "Received"}
+                    onChange={(s) =>
+                      setForm((f) => ({ ...f, alteration_status: s as AlterationStatus }))
+                    }
+                    colorScheme="good"
+                  />
+                </div>
               </div>
             )}
 
@@ -950,15 +950,6 @@ export default function ClientModal({
                           >
                             SMS
                           </a>
-                          {form.email && (
-                            <button
-                              onClick={() => handleSendEmail("special_order_arrived")}
-                              className="btn btn-ghost"
-                              disabled={notifying}
-                            >
-                              {notifying ? "Sending..." : "Email"}
-                            </button>
-                          )}
                         </div>
                       </div>
                     )}
