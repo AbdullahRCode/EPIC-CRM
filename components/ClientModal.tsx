@@ -7,14 +7,12 @@ import type {
   VisitReason,
   AlterationItem,
   AlterationStatus,
-  SpecialOrderStatus,
   Visit,
 } from "@/lib/types";
 import {
   BRANCHES,
   VISIT_REASONS,
   ALTERATION_STATUSES,
-  SPECIAL_ORDER_STATUSES,
   deriveTags,
 } from "@/lib/types";
 import { createClient, updateClient, deleteClient } from "@/app/actions/clients";
@@ -49,8 +47,6 @@ interface QuickForm {
   alteration_details: string;
   fit_notes: string;
   remarks: string;
-  follow_up_needed: boolean;
-  follow_up_reason: string;
 }
 
 function todayStr() {
@@ -75,8 +71,6 @@ function initQuickForm(defaultBranch?: Branch): QuickForm {
     alteration_details: "",
     fit_notes: "",
     remarks: "",
-    follow_up_needed: false,
-    follow_up_reason: "",
   };
 }
 
@@ -92,15 +86,13 @@ function initEditForm(c: Client): Omit<Client, "id" | "tenant_id" | "created_at"
     alterations: c.alterations ?? [],
     alteration_note: c.alteration_note ?? "",
     alteration_status: c.alteration_status,
-    special_order: c.special_order ?? "",
-    special_order_status: c.special_order_status,
     follow_up: c.follow_up ?? { needed: false },
     measurements: c.measurements ?? {},
     visits: c.visits ?? [],
   };
 }
 
-type AccordionSection = "identity" | "visit" | "alterations" | "order" | "followup";
+type AccordionSection = "identity" | "visit" | "alterations";
 
 export default function ClientModal({
   client: initialClient,
@@ -202,12 +194,7 @@ export default function ClientModal({
         alterations: quick.alteration_needed ? (["Other"] as AlterationItem[]) : [],
         alteration_note: alterationNote,
         alteration_status: quick.alteration_needed ? "Received" : undefined,
-        special_order: "",
-        special_order_status: undefined,
-        follow_up: {
-          needed: quick.follow_up_needed,
-          reason: quick.follow_up_reason,
-        },
+        follow_up: { needed: false },
         measurements: quick.fit_notes ? { notes: quick.fit_notes } : {},
         visits: [visit],
       };
@@ -609,42 +596,6 @@ export default function ClientModal({
               />
             </div>
 
-            {/* 12. Follow-up needed? */}
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-3" style={{ minHeight: 44 }}>
-                <input
-                  type="checkbox"
-                  id="quick-fu"
-                  checked={quick.follow_up_needed}
-                  onChange={(e) =>
-                    setQuick((q) => ({ ...q, follow_up_needed: e.target.checked }))
-                  }
-                  style={{ accentColor: "var(--ink)", width: 18, height: 18, flexShrink: 0 }}
-                />
-                <label
-                  htmlFor="quick-fu"
-                  className="label"
-                  style={{ cursor: "pointer", color: "var(--ink)" }}
-                >
-                  Follow-up needed?
-                </label>
-              </div>
-
-              {quick.follow_up_needed && (
-                <div>
-                  <p className="label mb-1">Follow-up reason</p>
-                  <input
-                    className="input-line"
-                    placeholder="Why follow up?"
-                    value={quick.follow_up_reason}
-                    onChange={(e) =>
-                      setQuick((q) => ({ ...q, follow_up_reason: e.target.value }))
-                    }
-                    style={{ minHeight: 44 }}
-                  />
-                </div>
-              )}
-            </div>
           </div>
         )}
 
@@ -875,135 +826,6 @@ export default function ClientModal({
                     colorScheme="good"
                   />
                 </div>
-              </div>
-            )}
-
-            {/* Special Order */}
-            <SectionHeader
-              id="order"
-              label="Special Order"
-              badge={
-                form.special_order?.trim() && form.special_order_status
-                  ? form.special_order_status
-                  : undefined
-              }
-            />
-            {openSections.has("order") && (
-              <div className="flex flex-col gap-5 py-5">
-                <div>
-                  <p className="label mb-1">Item ordered</p>
-                  <input
-                    className="input-line"
-                    placeholder="e.g. Custom navy blazer, size 42R"
-                    value={form.special_order ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, special_order: e.target.value }))}
-                    style={{ minHeight: 44 }}
-                  />
-                </div>
-                {form.special_order?.trim() && (
-                  <>
-                    <div>
-                      <p className="label mb-2">Status</p>
-                      <StatusPipeline
-                        stages={SPECIAL_ORDER_STATUSES}
-                        current={form.special_order_status ?? "Received"}
-                        onChange={(s) =>
-                          setForm((f) => ({
-                            ...f,
-                            special_order_status: s as SpecialOrderStatus,
-                          }))
-                        }
-                        colorScheme="good"
-                      />
-                    </div>
-
-                    {form.special_order_status === "Arrived" && !isNew && (
-                      <div
-                        className="flex flex-col gap-2 p-4"
-                        style={{ background: "#1f5a3208", border: "1px solid var(--good)" }}
-                      >
-                        <p className="label" style={{ color: "var(--good)" }}>
-                          Order arrived — notify client
-                        </p>
-                        <div className="flex gap-2 flex-wrap">
-                          <a
-                            href={`https://wa.me/${form.phone.replace(/\D/g, "")}?text=${encodeURIComponent(
-                              `Hi ${form.name}, your special order has arrived at EPIC Menswear ${form.branch}. We look forward to seeing you.`
-                            )}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn"
-                            style={{
-                              borderColor: "#25d366",
-                              color: "#25d366",
-                              textDecoration: "none",
-                            }}
-                          >
-                            WhatsApp
-                          </a>
-                          <a
-                            href={`sms:${form.phone}?body=${encodeURIComponent(
-                              `Hi ${form.name}, your special order has arrived at EPIC Menswear ${form.branch}.`
-                            )}`}
-                            className="btn btn-ghost"
-                            style={{ textDecoration: "none" }}
-                          >
-                            SMS
-                          </a>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Follow-up */}
-            <SectionHeader
-              id="followup"
-              label="Follow-up"
-              badge={form.follow_up?.needed ? "needed" : undefined}
-            />
-            {openSections.has("followup") && (
-              <div className="flex flex-col gap-5 py-5">
-                <div className="flex items-center gap-3" style={{ minHeight: 44 }}>
-                  <input
-                    type="checkbox"
-                    id="edit-followup"
-                    checked={form.follow_up?.needed ?? false}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        follow_up: { ...f.follow_up, needed: e.target.checked },
-                      }))
-                    }
-                    style={{ accentColor: "var(--ink)", width: 16, height: 16 }}
-                  />
-                  <label
-                    htmlFor="edit-followup"
-                    className="label"
-                    style={{ cursor: "pointer", color: "var(--ink)" }}
-                  >
-                    Follow-up needed
-                  </label>
-                </div>
-                {form.follow_up?.needed && (
-                  <div>
-                    <p className="label mb-1">Reason</p>
-                    <input
-                      className="input-line"
-                      placeholder="Why follow up?"
-                      value={form.follow_up?.reason ?? ""}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          follow_up: { ...f.follow_up, needed: true, reason: e.target.value },
-                        }))
-                      }
-                      style={{ minHeight: 44 }}
-                    />
-                  </div>
-                )}
               </div>
             )}
 
