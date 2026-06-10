@@ -8,6 +8,7 @@ import { useBranchOwner } from "@/lib/branch-context";
 import ClientModal from "./ClientModal";
 import PhotoIntake from "./PhotoIntake";
 import AnonymousSales from "./AnonymousSales";
+import { getAnonymousSales, type AnonymousSale } from "@/app/actions/anonymous";
 
 type DateRange = "today" | "week" | "month" | "all";
 
@@ -68,6 +69,7 @@ const DATE_RANGES = [
 export default function ClientList({ initialBranch }: ClientListProps) {
   const { ownerMode } = useBranchOwner();
   const [clients, setClients] = useState<Client[]>([]);
+  const [anonSales, setAnonSales] = useState<AnonymousSale[]>([]);
   const [loading, setLoading] = useState(true);
   const [branch, setBranch] = useState<Branch | "All">(initialBranch);
   const [tagFilter, setTagFilter] = useState<ClientTag | null>(null);
@@ -81,8 +83,13 @@ export default function ClientList({ initialBranch }: ClientListProps) {
   const loadClients = useCallback(async (b: Branch | "All") => {
     setLoading(true);
     try {
-      const data = await getClients(b === "All" ? undefined : b);
+      const todayStr = new Date().toISOString().split("T")[0];
+      const [data, anon] = await Promise.all([
+        getClients(b === "All" ? undefined : b),
+        getAnonymousSales(b === "All" ? undefined : b, todayStr),
+      ]);
       setClients(data);
+      setAnonSales(anon);
     } finally {
       setLoading(false);
     }
@@ -364,6 +371,53 @@ export default function ClientList({ initialBranch }: ClientListProps) {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Today's anonymous sales — inline rows */}
+        {!loading && anonSales.length > 0 && (
+          <div>
+            <div className="px-4 sm:px-6 py-2" style={{ borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+              <span className="label" style={{ color: "var(--muted)", fontSize: "0.5rem", letterSpacing: "0.15em" }}>
+                ANONYMOUS SALES · TODAY
+              </span>
+            </div>
+            {anonSales.map((sale) => (
+              <div
+                key={sale.id}
+                className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-4"
+                style={{
+                  borderBottom: "1px solid var(--line)",
+                  background: "var(--paper-2)",
+                  borderLeft: "3px solid var(--line)",
+                }}
+              >
+                <div style={{
+                  width: 36, height: 36, borderRadius: "50%",
+                  background: "var(--line)", display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="5" r="3" fill="var(--muted)" />
+                    <path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="var(--muted)" strokeWidth="1.5" />
+                  </svg>
+                </div>
+                <div className="flex flex-col gap-1 flex-1 min-w-0">
+                  <span style={{ fontStyle: "italic", color: "var(--muted)", fontSize: "0.85rem", fontFamily: "var(--font-serif)" }}>
+                    Anonymous Sale
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>{sale.branch}</span>
+                    <span className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>
+                      {new Date(sale.sale_date + "T12:00:00").toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+                    </span>
+                  </div>
+                </div>
+                <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: "1rem", color: "var(--ink)", flexShrink: 0 }}>
+                  ${sale.total_amount.toLocaleString()}
+                </span>
+              </div>
+            ))}
           </div>
         )}
 

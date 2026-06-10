@@ -38,19 +38,38 @@ export async function addAnonymousSale(sale: {
   notes?: string;
 }): Promise<void> {
   const supabase = createSupabaseServerClient();
-  const total = sale.items.reduce((s, i) => s + (i.amount ?? 0), 0);
+  const today = new Date().toISOString().split("T")[0];
+  const newTotal = sale.items.reduce((s, i) => s + (i.amount ?? 0), 0);
 
-  const { error } = await supabase.from("anonymous_sales").insert({
-    tenant_id: "epic-menswear",
-    branch: sale.branch,
-    sale_date: new Date().toISOString().split("T")[0],
-    items: sale.items,
-    total_amount: total,
-    staff: sale.staff ?? null,
-    notes: sale.notes ?? null,
-  });
+  const { data: existing } = await supabase
+    .from("anonymous_sales")
+    .select("*")
+    .eq("tenant_id", "epic-menswear")
+    .eq("branch", sale.branch)
+    .eq("sale_date", today)
+    .single();
 
-  if (error) throw error;
+  if (existing) {
+    const updatedItems = [...(existing.items ?? []), ...sale.items];
+    const updatedTotal = (existing.total_amount ?? 0) + newTotal;
+    const { error } = await supabase
+      .from("anonymous_sales")
+      .update({ items: updatedItems, total_amount: updatedTotal })
+      .eq("id", existing.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("anonymous_sales").insert({
+      tenant_id: "epic-menswear",
+      branch: sale.branch,
+      sale_date: today,
+      items: sale.items,
+      total_amount: newTotal,
+      staff: sale.staff ?? null,
+      notes: sale.notes ?? null,
+    });
+    if (error) throw error;
+  }
+
   revalidatePath("/");
   revalidatePath("/insights");
 }

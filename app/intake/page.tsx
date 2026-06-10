@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { deriveTags } from "@/lib/types";
 import ClientModal from "@/components/ClientModal";
 import PhotoIntake from "@/components/PhotoIntake";
-import AnonymousSales from "@/components/AnonymousSales";
+import { addAnonymousSale } from "@/app/actions/anonymous";
 
 type FilterTab = "all" | "followup" | "altready" | "vip";
 
@@ -39,6 +39,8 @@ export default function IntakePage() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showPhoto, setShowPhoto] = useState(false);
   const [showAnon, setShowAnon] = useState(false);
+  const [anonItems, setAnonItems] = useState([{ item: "", amount: "" }]);
+  const [anonSaving, setAnonSaving] = useState(false);
 
   useEffect(() => {
     getUserProfile().then(async (p) => {
@@ -95,6 +97,29 @@ export default function IntakePage() {
       addToast("Failed to update alteration status.", "error");
     } finally {
       setMarkingReady(null);
+    }
+  }
+
+  function closeAnonOverlay() {
+    setShowAnon(false);
+    setAnonItems([{ item: "", amount: "" }]);
+  }
+
+  async function handleAnonSave() {
+    if (!profile) return;
+    const validItems = anonItems
+      .filter((i) => i.item.trim() && parseFloat(i.amount) > 0)
+      .map((i) => ({ item: i.item.trim(), amount: parseFloat(i.amount) }));
+    if (!validItems.length) return;
+    setAnonSaving(true);
+    try {
+      await addAnonymousSale({ branch: profile.branch, items: validItems, staff: profile.name });
+      addToast("Sale logged");
+      closeAnonOverlay();
+    } catch {
+      addToast("Failed to log sale.", "error");
+    } finally {
+      setAnonSaving(false);
     }
   }
 
@@ -374,31 +399,86 @@ export default function IntakePage() {
 
       {/* Anonymous sale overlay */}
       {showAnon && profile && (
-        <div style={{
-          position: "fixed", inset: 0,
-          background: "rgba(10,10,10,0.5)",
-          zIndex: 100,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          padding: "1rem",
-        }}>
-          <div style={{
-            background: "var(--paper)",
-            border: "1px solid var(--line)",
-            padding: "1.5rem",
-            maxWidth: 480,
-            width: "100%",
-            maxHeight: "85vh",
-            overflowY: "auto",
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <p className="label" style={{ color: "var(--ink)", fontSize: "0.6rem" }}>ANONYMOUS SALE · {profile.branch.toUpperCase()}</p>
-              <button onClick={() => setShowAnon(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.2rem", color: "var(--muted)" }}>×</button>
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(10,10,10,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}
+          onClick={closeAnonOverlay}
+        >
+          <div
+            style={{ background: "var(--paper)", border: "1px solid var(--line)", padding: "1.5rem", maxWidth: 420, width: "100%" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+              <p className="label" style={{ color: "var(--ink)", fontSize: "0.6rem" }}>
+                ANONYMOUS SALE · {profile.branch.toUpperCase()}
+              </p>
+              <button onClick={closeAnonOverlay} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.2rem", color: "var(--muted)" }}>×</button>
             </div>
-            <AnonymousSales
-              ownerMode={false}
-              branch={profile.branch as Branch}
-              employeeBranch={profile.branch}
-            />
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "0.75rem" }}>
+              {anonItems.map((item, i) => (
+                <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <input
+                    className="input-line"
+                    placeholder="Item (e.g. black suit)"
+                    value={item.item}
+                    onChange={(e) => {
+                      const next = [...anonItems];
+                      next[i] = { ...next[i], item: e.target.value };
+                      setAnonItems(next);
+                    }}
+                    style={{ flex: 2, fontSize: "0.8rem" }}
+                    autoFocus={i === 0}
+                  />
+                  <input
+                    className="input-line"
+                    type="number"
+                    placeholder="$"
+                    value={item.amount}
+                    onChange={(e) => {
+                      const next = [...anonItems];
+                      next[i] = { ...next[i], amount: e.target.value };
+                      setAnonItems(next);
+                    }}
+                    style={{ flex: 1, fontSize: "0.8rem" }}
+                  />
+                  {anonItems.length > 1 && (
+                    <button
+                      onClick={() => setAnonItems(anonItems.filter((_, idx) => idx !== i))}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "1.1rem", flexShrink: 0, padding: "0 0.25rem" }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <button
+              className="btn btn-ghost label"
+              onClick={() => setAnonItems([...anonItems, { item: "", amount: "" }])}
+              style={{ fontSize: "0.6rem", marginBottom: "1.25rem" }}
+            >
+              + Add item
+            </button>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <p style={{ fontFamily: "var(--font-outfit), system-ui", fontSize: "0.7rem", color: "var(--muted)" }}>
+                Staff: {profile.name}
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button className="btn label" onClick={closeAnonOverlay} style={{ fontSize: "0.6rem" }}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary label"
+                  onClick={handleAnonSave}
+                  disabled={anonSaving}
+                  style={{ fontSize: "0.6rem" }}
+                >
+                  {anonSaving ? "Saving…" : "Save Sale"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
