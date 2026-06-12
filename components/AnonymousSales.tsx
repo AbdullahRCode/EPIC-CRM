@@ -67,18 +67,15 @@ export default function AnonymousSales({ ownerMode, branch, employeeBranch }: Pr
 
   async function handleSave() {
     const validItems = form.items.filter((i) => i.item.trim() && parseFloat(String(i.amount)) > 0);
-    console.log("[AnonymousSales] handleSave — form:", form, "validItems:", validItems);
     if (!validItems.length) return;
     setSaving(true);
     try {
-      console.log("[AnonymousSales] calling addAnonymousSale:", { branch: form.branch, items: validItems });
       await addAnonymousSale({
         branch: form.branch,
         items: validItems,
         staff: form.staff || undefined,
         notes: form.notes || undefined,
       });
-      console.log("[AnonymousSales] addAnonymousSale succeeded");
       setForm({
         branch: form.branch,
         items: [{ item: "", amount: 0 }],

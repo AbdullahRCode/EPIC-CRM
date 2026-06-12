@@ -29,13 +29,15 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // getUser() validates the JWT with the Supabase Auth server — never trust
+  // the cookie payload (getSession) for role decisions.
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
 
-  // Always allow: login page, API routes, static assets
+  // Always allow: login page, API routes (route-level guards), static assets
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/api") ||
@@ -45,11 +47,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // Not logged in → go to login
-  if (!session) {
+  if (!user) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const role = session.user?.user_metadata?.role ?? "employee";
+  // Role lives in app_metadata — only the service role can write it.
+  const role = user.app_metadata?.role ?? "employee";
 
   // Employee trying to access dashboard → redirect to intake
   if (role === "employee" && !pathname.startsWith("/intake")) {

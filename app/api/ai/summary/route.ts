@@ -4,13 +4,20 @@ import { NextResponse } from "next/server";
 import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_TENANT, BRANCHES } from "@/lib/types";
+import { getSessionProfile } from "@/lib/auth";
 
 export async function POST(req: Request) {
-  console.log('ANTHROPIC KEY CHECK:', process.env.ANTHROPIC_API_KEY?.slice(0,15))
+  const profile = await getSessionProfile();
+  if (!profile) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   try {
     const body = await req.json().catch(() => ({}));
-    const branchFilter: string | undefined = body.branch && body.branch !== "All" ? body.branch : undefined;
+    const requestedBranch: string | undefined =
+      body.branch && body.branch !== "All" ? body.branch : undefined;
+    const branchFilter =
+      profile.role === "employee" ? profile.branch || "—none—" : requestedBranch;
 
     const today = new Date().toISOString().split("T")[0];
     const sixMonthsAgo = new Date(Date.now() - 180 * 86400000).toISOString().split("T")[0];

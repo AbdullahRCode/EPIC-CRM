@@ -5,8 +5,14 @@ import { getResend } from "@/lib/resend";
 import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_TENANT } from "@/lib/types";
+import { getSessionProfile } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
+  const profile = await getSessionProfile();
+  if (!profile) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { clientId, statusType, sentBy } = await req.json();
 

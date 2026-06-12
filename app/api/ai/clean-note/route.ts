@@ -2,8 +2,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
+import { getSessionProfile } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
+  const profile = await getSessionProfile();
+  if (!profile) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let note = "";
   let context = "general client note";
 

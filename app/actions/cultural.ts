@@ -4,8 +4,10 @@ import { perplexitySearch } from "@/lib/perplexity";
 import { getSeedEvents } from "@/lib/cultural-seeds";
 import { type CulturalEvent, type Branch } from "@/lib/types";
 import { randomUUID } from "crypto";
+import { requireSession } from "@/lib/auth";
 
 export async function refreshCulturalEvents(): Promise<CulturalEvent[]> {
+  await requireSession();
   try {
     const currentYear = new Date().getFullYear();
     const query = `What are the exact dates for major cultural events in British Columbia and Calgary, Canada for ${currentYear}? Include: Diwali, Lunar New Year, Vaisakhi, Calgary Stampede, Eid al-Fitr, Holi. Return dates in YYYY-MM-DD format.`;

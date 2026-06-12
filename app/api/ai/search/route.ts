@@ -4,18 +4,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_TENANT } from "@/lib/types";
+import { getSessionProfile } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
+  const profile = await getSessionProfile();
+  if (!profile) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { query, branch } = await req.json();
     if (!query?.trim()) return NextResponse.json({ type: "search", ids: [], interpretation: "" });
+
+    // Employees are always scoped to their own branch, whatever they request
+    const effectiveBranch = profile.role === "employee" ? profile.branch || "—none—" : branch;
 
     let dbQuery = getSupabaseAdmin()
       .from("clients")
       .select("id, name, phone, email, branch, events, event_date, alterations, alteration_status, special_order, special_order_status, follow_up, visits, updated_at")
       .eq("tenant_id", DEFAULT_TENANT);
 
-    if (branch && branch !== "All") dbQuery = dbQuery.eq("branch", branch);
+    if (effectiveBranch && effectiveBranch !== "All") dbQuery = dbQuery.eq("branch", effectiveBranch);
 
     const { data: clients } = await dbQuery;
     if (!clients?.length) return NextResponse.json({ type: "search", ids: [], interpretation: "No clients found." });

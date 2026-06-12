@@ -6,17 +6,25 @@ import { DailyPDFReport } from "@/lib/reports/daily-pdf";
 import React from "react";
 import { Resend } from "resend";
 import type { Client } from "@/lib/types";
+import { getSessionProfile } from "@/lib/auth";
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "abdullah@logorhythmx.com";
-const REPORT_SECRET = process.env.REPORT_SECRET ?? "epic-report-2026";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const secret = searchParams.get("secret");
   const type = searchParams.get("type") ?? "daily";
 
-  if (secret !== REPORT_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Two ways in: a signed-in owner/admin session, or the REPORT_SECRET env
+  // var for cron callers. No hardcoded fallback — unset secret means
+  // session-only access.
+  const envSecret = process.env.REPORT_SECRET;
+  const secretOk = Boolean(envSecret && secret === envSecret);
+  if (!secretOk) {
+    const profile = await getSessionProfile();
+    if (!profile || (profile.role !== "admin" && profile.role !== "owner")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   try {

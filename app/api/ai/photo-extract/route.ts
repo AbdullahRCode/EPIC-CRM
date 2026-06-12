@@ -3,8 +3,14 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { BRANCHES } from "@/lib/types";
+import { getSessionProfile } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
+  const profile = await getSessionProfile();
+  if (!profile) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const formData = await req.formData();
     const imageFile = formData.get("image") as File | null;

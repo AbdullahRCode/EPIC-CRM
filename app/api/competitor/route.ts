@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
+import { getSessionProfile } from "@/lib/auth";
 
 const PERPLEXITY_KEY = process.env.PERPLEXITY_API_KEY ?? process.env.PERPLEXITY_API_KEY_EPIC;
-console.log("Perplexity key present:", !!PERPLEXITY_KEY);
 
 const BRANCH_COMPETITORS: Record<string, {
   mall: string;
@@ -185,6 +185,12 @@ Write only the note text, no label or title needed.`;
 }
 
 export async function GET(req: Request) {
+  // Owner/admin only — each scan fires dozens of Perplexity calls
+  const profile = await getSessionProfile();
+  if (!profile || (profile.role !== "admin" && profile.role !== "owner")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const branch = searchParams.get("branch") ?? "all";
 

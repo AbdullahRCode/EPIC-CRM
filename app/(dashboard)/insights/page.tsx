@@ -235,7 +235,7 @@ export default function InsightsPage() {
             <button
               className="btn btn-ghost"
               onClick={async () => {
-                const res = await fetch(`/api/reports/daily?secret=${process.env.NEXT_PUBLIC_REPORT_SECRET ?? "epic-report-2026"}&type=daily`);
+                const res = await fetch("/api/reports/daily?type=daily");
                 if (res.ok) alert("Daily report sent to owner email.");
                 else alert("Failed to send report — check Resend API key in Vercel.");
               }}
