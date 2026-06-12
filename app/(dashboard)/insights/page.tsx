@@ -167,10 +167,11 @@ export default function InsightsPage() {
         counts[group].revenue += v.spend ?? 0;
       });
     });
+    // Layout is a bounded scroll rail now — show every category (the
+    // parseProductGroup buckets cap this at ~13 anyway)
     return Object.entries(counts)
       .map(([name, data]) => ({ name, ...data }))
-      .sort((a, b) => b.count - a.count || b.revenue - a.revenue)
-      .slice(0, 8);
+      .sort((a, b) => b.count - a.count || b.revenue - a.revenue);
   }, [filteredClients]);
 
   // Top Staff
@@ -188,7 +189,7 @@ export default function InsightsPage() {
     });
     return Object.values(staffMap)
       .sort((a, b) => b.revenue - a.revenue || b.count - a.count)
-      .slice(0, 5);
+      .slice(0, 12); // rail scrolls horizontally — page height stays fixed
   }, [filteredClients]);
 
   const hasStaffData = useMemo(() => {
@@ -361,19 +362,12 @@ export default function InsightsPage() {
                 No purchase data in this period. Log items on visits to see rankings.
               </p>
             ) : (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-                  gap: 0,
-                }}
-              >
+              <div className="scroll-rail">
                 {topProducts.map((product, idx) => (
                   <div
                     key={product.name}
                     style={{
-                      border: "1px solid var(--line)",
-                      borderTop: idx === 0 ? "2px solid var(--vip)" : "1px solid var(--line)",
+                      borderTop: idx === 0 ? "2px solid var(--vip)" : "2px solid transparent",
                       padding: "1rem",
                       display: "flex",
                       flexDirection: "column",
@@ -402,19 +396,12 @@ export default function InsightsPage() {
           <div>
             <p className="section-title">Top Staff</p>
             {topStaff.length > 0 && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-                  gap: 0,
-                }}
-              >
+              <div className="scroll-rail">
                 {topStaff.map((staff, idx) => (
                   <div
                     key={staff.displayName}
                     style={{
-                      border: "1px solid var(--line)",
-                      borderTop: idx === 0 ? "2px solid var(--vip)" : "1px solid var(--line)",
+                      borderTop: idx === 0 ? "2px solid var(--vip)" : "2px solid transparent",
                       padding: "1rem",
                       display: "flex",
                       flexDirection: "column",

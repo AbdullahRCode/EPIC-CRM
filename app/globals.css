@@ -493,3 +493,41 @@ select.input-line {
     transition: none !important;
   }
 }
+
+/* ── Bounded list card: horizontal scroll rail (Gallery-style) ────────── */
+
+.scroll-rail {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 2px #0a0a0a08, 0 4px 16px #0a0a0a06;
+}
+
+.scroll-rail > * {
+  flex: 0 0 150px;
+  scroll-snap-align: start;
+  border-right: 1px solid var(--line);
+}
+
+.scroll-rail > *:last-child { border-right: none; }
+
+.scroll-rail::-webkit-scrollbar { height: 6px; }
+.scroll-rail::-webkit-scrollbar-track { background: var(--paper-2); }
+.scroll-rail::-webkit-scrollbar-thumb { background: var(--line); }
+.scroll-rail:hover::-webkit-scrollbar-thumb { background: #0a0a0a33; }
+
+/* Vertical variant for row-shaped lists */
+.scroll-list {
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 2px #0a0a0a08, 0 4px 16px #0a0a0a06;
+}
+
+.scroll-list::-webkit-scrollbar { width: 6px; }
+.scroll-list::-webkit-scrollbar-track { background: var(--paper-2); }
+.scroll-list::-webkit-scrollbar-thumb { background: var(--line); }
+.scroll-list:hover::-webkit-scrollbar-thumb { background: #0a0a0a33; }
