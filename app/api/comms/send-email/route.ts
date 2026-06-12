@@ -14,15 +14,25 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { clientId, statusType, sentBy } = await req.json();
+    const { clientId, statusType } = await req.json();
 
-    // Fetch client
-    const { data: client, error } = await getSupabaseAdmin()
+    if (statusType !== "alteration_ready" && statusType !== "order_arrived") {
+      return NextResponse.json({ error: "Invalid statusType" }, { status: 400 });
+    }
+
+    // Fetch client — employees can only notify clients of their own branch
+    let query = getSupabaseAdmin()
       .from("clients")
       .select("*")
       .eq("id", clientId)
-      .eq("tenant_id", DEFAULT_TENANT)
-      .single();
+      .eq("tenant_id", DEFAULT_TENANT);
+    if (profile.role === "employee") {
+      if (!profile.branch) {
+        return NextResponse.json({ error: "No branch assigned" }, { status: 403 });
+      }
+      query = query.eq("branch", profile.branch);
+    }
+    const { data: client, error } = await query.single();
 
     if (error || !client?.email) {
       return NextResponse.json({ error: "Client not found or no email" }, { status: 400 });
@@ -58,20 +68,20 @@ Write ONLY the email body (no subject line). Tone: warm, professional, luxury. 3
     const body = message.content[0].type === "text" ? message.content[0].text : "";
 
     await getResend().emails.send({
-      from: "EPIC Menswear <noreply@epicmenswear.com>",
+      from: process.env.EMAIL_FROM ?? "EPIC Menswear <reports@epicmenswear.ca>",
       to: client.email,
       subject,
       text: body,
     });
 
-    // Log communication
+    // Log communication — sender comes from the verified session, not the body
     await getSupabaseAdmin().from("comms").insert({
       tenant_id: DEFAULT_TENANT,
       client_id: clientId,
       channel: "email",
       direction: "outbound",
       summary: subject,
-      sent_by: sentBy ?? "system",
+      sent_by: profile.name || profile.email,
     });
 
     return NextResponse.json({ success: true });

@@ -65,7 +65,7 @@ export async function GET(req: Request) {
       : `EPIC Menswear — Daily Briefing · ${new Date().toLocaleDateString("en-CA", { weekday: "long", month: "short", day: "numeric" })}`;
 
     await resend.emails.send({
-      from: "EPIC Menswear CRM <reports@epicmenswear.ca>",
+      from: process.env.EMAIL_FROM ?? "EPIC Menswear CRM <reports@epicmenswear.ca>",
       to: [OWNER_EMAIL],
       subject,
       html: `
