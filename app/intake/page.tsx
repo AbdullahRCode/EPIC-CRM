@@ -12,6 +12,7 @@ import { deriveTags } from "@/lib/types";
 import ClientModal from "@/components/ClientModal";
 import PhotoIntake from "@/components/PhotoIntake";
 import { addAnonymousSale } from "@/app/actions/anonymous";
+import { todayStr } from "@/lib/dates";
 
 type FilterTab = "all" | "followup" | "altready" | "vip";
 
@@ -129,7 +130,7 @@ export default function IntakePage() {
     router.push("/login");
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayStr();
   const todayCount = clients.filter((c) =>
     (c.visits ?? []).some((v) => v.date === today)
   ).length;

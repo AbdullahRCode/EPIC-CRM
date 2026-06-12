@@ -5,6 +5,7 @@ import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_TENANT, BRANCHES } from "@/lib/types";
 import { getSessionProfile } from "@/lib/auth";
+import { todayStr, daysAgoStr } from "@/lib/dates";
 
 export async function POST(req: Request) {
   const profile = await getSessionProfile();
@@ -19,8 +20,8 @@ export async function POST(req: Request) {
     const branchFilter =
       profile.role === "employee" ? profile.branch || "—none—" : requestedBranch;
 
-    const today = new Date().toISOString().split("T")[0];
-    const sixMonthsAgo = new Date(Date.now() - 180 * 86400000).toISOString().split("T")[0];
+    const today = todayStr();
+    const sixMonthsAgo = daysAgoStr(180);
 
     let query = getSupabaseAdmin()
       .from("clients")

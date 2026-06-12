@@ -18,6 +18,8 @@ import {
 import { createClient, updateClient, deleteClient } from "@/app/actions/clients";
 import StatusPipeline from "./StatusPipeline";
 
+import { todayStr } from "@/lib/dates";
+
 const uid = () => crypto.randomUUID();
 
 interface ClientModalProps {
@@ -47,10 +49,6 @@ interface QuickForm {
   alteration_details: string;
   fit_notes: string;
   remarks: string;
-}
-
-function todayStr() {
-  return new Date().toISOString().split("T")[0];
 }
 
 function initQuickForm(defaultBranch?: Branch): QuickForm {

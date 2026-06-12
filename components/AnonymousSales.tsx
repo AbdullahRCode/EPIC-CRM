@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getAnonymousSales, addAnonymousSale, deleteAnonymousSale, type AnonymousSale } from "@/app/actions/anonymous";
 import { BRANCHES, type Branch } from "@/lib/types";
+import { todayStr as localToday } from "@/lib/dates";
 
 interface Props {
   ownerMode: boolean;
@@ -21,7 +22,7 @@ export default function AnonymousSales({ ownerMode, branch, employeeBranch }: Pr
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [filterDate, setFilterDate] = useState(new Date().toISOString().split("T")[0]);
+  const [filterDate, setFilterDate] = useState(localToday());
 
   const defaultBranch = (employeeBranch ?? (branch === "All" ? BRANCHES[0] : branch)) as Branch;
 
@@ -96,7 +97,7 @@ export default function AnonymousSales({ ownerMode, branch, employeeBranch }: Pr
   }
 
   const totalRevenue = sales.reduce((s, sale) => s + (sale.total_amount ?? 0), 0);
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = localToday();
   const todaySales = sales.filter((s) => s.sale_date === todayStr);
   const todayRevenue = todaySales.reduce((s, sale) => s + (sale.total_amount ?? 0), 0);
 

@@ -126,8 +126,10 @@ export function deriveTags(client: Client): ClientTag[] {
   if (totalSpend >= 1000) tags.push("VIP");
   if (client.visits.length >= 2) tags.push("Returning");
 
+  // Parse date-only strings at noon so the Cold cutoff doesn't shift a day
+  // across the UTC boundary (visit dates are store-local, server runs UTC).
   const lastVisit = client.visits
-    .map((v) => new Date(v.date))
+    .map((v) => new Date(v.date.length === 10 ? `${v.date}T12:00:00` : v.date))
     .sort((a, b) => b.getTime() - a.getTime())[0];
   if (lastVisit) {
     const daysSince = (Date.now() - lastVisit.getTime()) / 86400000;

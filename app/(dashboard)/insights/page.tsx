@@ -10,6 +10,7 @@ import BranchBars from "@/components/BranchBars";
 import DailySummary from "@/components/DailySummary";
 import DonutChart from "@/components/DonutChart";
 import { deriveTags } from "@/lib/types";
+import { todayStr, daysAgoStr } from "@/lib/dates";
 
 type DatePreset = "yesterday" | "today" | "week" | "month" | "all" | "custom";
 
@@ -19,39 +20,24 @@ interface RangeState {
   customTo: string;
 }
 
-function todayStr() {
-  return new Date().toISOString().split("T")[0];
-}
-
-function yesterdayStr() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().split("T")[0];
-}
-
 function computeRange(state: RangeState, clients: Client[]): { from: string; to: string } {
   const today = todayStr();
-  const yesterday = yesterdayStr();
+  const yesterday = daysAgoStr(1);
 
   if (state.preset === "yesterday") return { from: yesterday, to: yesterday };
   if (state.preset === "today") return { from: today, to: today };
   if (state.preset === "week") {
-    const d = new Date();
-    d.setDate(d.getDate() - 6);
-    return { from: d.toISOString().split("T")[0], to: today };
+    return { from: daysAgoStr(6), to: today };
   }
   if (state.preset === "month") {
-    const d = new Date();
-    d.setDate(d.getDate() - 29);
-    return { from: d.toISOString().split("T")[0], to: today };
+    return { from: daysAgoStr(29), to: today };
   }
   if (state.preset === "custom") {
     return { from: state.customFrom || today, to: state.customTo || today };
   }
   // "all"
   const allDates = clients.flatMap((c) => (c.visits ?? []).map((v) => v.date)).sort();
-  const earliest =
-    allDates[0] ?? new Date(Date.now() - 2 * 365 * 86400000).toISOString().split("T")[0];
+  const earliest = allDates[0] ?? daysAgoStr(2 * 365);
   return { from: earliest, to: today };
 }
 

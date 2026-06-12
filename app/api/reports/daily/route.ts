@@ -7,6 +7,7 @@ import React from "react";
 import { Resend } from "resend";
 import type { Client } from "@/lib/types";
 import { getSessionProfile } from "@/lib/auth";
+import { todayStr } from "@/lib/dates";
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "abdullah@logorhythmx.com";
 
@@ -42,7 +43,7 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = todayStr();
     const typedClients = (clients ?? []) as Client[];
     const resend = new Resend(process.env.RESEND_API_KEY);
     const altReadyCount = typedClients.filter((c) => c.alteration_status === "Ready").length;

@@ -9,6 +9,7 @@ import ClientModal from "./ClientModal";
 import PhotoIntake from "./PhotoIntake";
 import AnonymousSales from "./AnonymousSales";
 import { getAnonymousSales, type AnonymousSale } from "@/app/actions/anonymous";
+import { todayStr, parseDateLocal } from "@/lib/dates";
 
 type DateRange = "today" | "week" | "month" | "all";
 
@@ -83,10 +84,9 @@ export default function ClientList({ initialBranch }: ClientListProps) {
   const loadClients = useCallback(async (b: Branch | "All") => {
     setLoading(true);
     try {
-      const todayStr = new Date().toISOString().split("T")[0];
       const [data, anon] = await Promise.all([
         getClients(b === "All" ? undefined : b),
-        getAnonymousSales(b === "All" ? undefined : b, todayStr),
+        getAnonymousSales(b === "All" ? undefined : b, todayStr()),
       ]);
       setClients(data);
       setAnonSales(anon);
@@ -160,7 +160,7 @@ export default function ClientList({ initialBranch }: ClientListProps) {
       .filter((c) => c.event_date && c.events.length > 0)
       .map((c) => ({
         client: c,
-        eventDate: new Date(c.event_date!),
+        eventDate: parseDateLocal(c.event_date!),
         eventType: c.events[0],
       }))
       .filter((e) => e.eventDate >= now && e.eventDate <= in90)

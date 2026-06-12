@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { requireSession, requireRole } from "@/lib/auth";
+import { todayStr } from "@/lib/dates";
 import { revalidatePath } from "next/cache";
 
 export interface AnonymousSale {
@@ -50,7 +51,7 @@ export async function addAnonymousSale(sale: {
   if (!branch) throw new Error("No branch assigned");
 
   const supabase = createSupabaseServerClient();
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayStr();
   const newTotal = sale.items.reduce((s, i) => s + (i.amount ?? 0), 0);
 
   // Atomic INSERT ... ON CONFLICT in the database — concurrent saves
