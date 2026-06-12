@@ -198,15 +198,12 @@ export default function InsightsPage() {
   return (
     <div className="overflow-y-auto" style={{ height: "calc(100vh - 97px)" }}>
       {/* Page header */}
-      <div
-        className="px-4 sm:px-6 pt-5 pb-3 flex items-start justify-between gap-3"
-        style={{ borderBottom: "1px solid var(--line)" }}
-      >
+      <div className="px-4 sm:px-6 pt-5 pb-3 flex items-start justify-between gap-3 page-band">
         <div>
           <h1 className="font-serif" style={{ fontSize: "1.6rem", fontWeight: 400 }}>
             <em>Insights</em>
           </h1>
-          <p className="label mt-1" style={{ color: "var(--muted)" }}>
+          <p className="label mt-1">
             {branch === "All" ? "All branches" : branch} — performance at a glance
           </p>
         </div>

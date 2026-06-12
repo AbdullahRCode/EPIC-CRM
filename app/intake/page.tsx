@@ -186,7 +186,7 @@ export default function IntakePage() {
   ];
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--paper)", display: "flex", flexDirection: "column" }}>
+    <div className="lb-page" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
 
       {/* Header */}
       <header style={{ borderBottom: "1px solid var(--line)", padding: "0.75rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
@@ -223,15 +223,15 @@ export default function IntakePage() {
       {/* Stats bar */}
       <div style={{ borderBottom: "1px solid var(--line)", padding: "0.75rem 1.5rem", display: "flex", gap: "2.5rem", flexShrink: 0 }}>
         <div>
-          <p style={{ fontFamily: "var(--font-outfit), system-ui", fontSize: "1.3rem", fontWeight: 600, color: "var(--ink)", lineHeight: 1 }}>{todayCount}</p>
+          <p className="stat-num" style={{ fontSize: "1.4rem", lineHeight: 1 }}>{todayCount}</p>
           <p className="label" style={{ color: "var(--muted)", marginTop: "0.2rem" }}>Today</p>
         </div>
         <div>
-          <p style={{ fontFamily: "var(--font-outfit), system-ui", fontSize: "1.3rem", fontWeight: 600, color: "var(--danger)", lineHeight: 1 }}>{followUpCount}</p>
+          <p className="stat-num" style={{ fontSize: "1.4rem", color: "var(--danger)", lineHeight: 1 }}>{followUpCount}</p>
           <p className="label" style={{ color: "var(--muted)", marginTop: "0.2rem" }}>Follow-ups</p>
         </div>
         <div>
-          <p style={{ fontFamily: "var(--font-outfit), system-ui", fontSize: "1.3rem", fontWeight: 600, color: "var(--good)", lineHeight: 1 }}>{altReadyCount}</p>
+          <p className="stat-num" style={{ fontSize: "1.4rem", color: "var(--good)", lineHeight: 1 }}>{altReadyCount}</p>
           <p className="label" style={{ color: "var(--muted)", marginTop: "0.2rem" }}>Alt. Ready</p>
         </div>
       </div>
@@ -303,7 +303,7 @@ export default function IntakePage() {
       </div>
 
       {/* Client list */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 1.5rem 2rem" }}>
+      <div className="lb-card" style={{ flex: 1, overflowY: "auto", padding: "0 1.5rem 2rem" }}>
         {visible.length === 0 ? (
           <p style={{ marginTop: "3rem", textAlign: "center", fontSize: "0.8rem", color: "var(--muted)", fontStyle: "italic", fontFamily: "var(--font-outfit), system-ui" }}>
             {search || filter !== "all" ? "No clients match this filter." : "No clients yet. Add the first entry."}
@@ -317,7 +317,8 @@ export default function IntakePage() {
             return (
               <div
                 key={client.id}
-                style={{ borderBottom: "1px solid var(--line)", padding: "0.9rem 0", display: "flex", alignItems: "center", gap: "1rem", cursor: "pointer" }}
+                className="lb-row"
+                style={{ borderBottom: "1px solid var(--line)", padding: "0.9rem 0.5rem", display: "flex", alignItems: "center", gap: "1rem", cursor: "pointer" }}
                 onClick={() => { setSelectedClient(client); setShowModal(true); }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
