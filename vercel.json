@@ -5,11 +5,11 @@
   "installCommand": "npm install",
   "crons": [
     {
-      "path": "/api/reports/daily?secret=epic-report-2026&type=daily",
+      "path": "/api/reports/daily?type=daily",
       "schedule": "0 22 * * *"
     },
     {
-      "path": "/api/reports/daily?secret=epic-report-2026&type=weekly",
+      "path": "/api/reports/daily?type=weekly",
       "schedule": "0 8 * * 5"
     }
   ]

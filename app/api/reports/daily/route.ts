@@ -15,12 +15,18 @@ export async function GET(req: Request) {
   const secret = searchParams.get("secret");
   const type = searchParams.get("type") ?? "daily";
 
-  // Two ways in: a signed-in owner/admin session, or the REPORT_SECRET env
-  // var for cron callers. No hardcoded fallback — unset secret means
+  // Three ways in: Vercel cron (Authorization: Bearer CRON_SECRET — Vercel
+  // attaches this automatically when the CRON_SECRET env var is set), a
+  // REPORT_SECRET query param for manual/external callers, or a signed-in
+  // owner/admin session. No hardcoded fallbacks — unset secrets mean
   // session-only access.
+  const cronSecret = process.env.CRON_SECRET;
+  const cronOk = Boolean(
+    cronSecret && req.headers.get("authorization") === `Bearer ${cronSecret}`
+  );
   const envSecret = process.env.REPORT_SECRET;
   const secretOk = Boolean(envSecret && secret === envSecret);
-  if (!secretOk) {
+  if (!cronOk && !secretOk) {
     const profile = await getSessionProfile();
     if (!profile || (profile.role !== "admin" && profile.role !== "owner")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
