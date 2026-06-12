@@ -19,7 +19,14 @@ import {
   SPECIAL_ORDER_STATUSES,
   deriveTags,
 } from "@/lib/types";
-import { updateClient, deleteClient } from "@/app/actions/clients";
+import {
+  updateClient,
+  deleteClient,
+  getClientEdits,
+  findClientsByPhone,
+  type ClientEdit,
+  type PhoneMatch,
+} from "@/app/actions/clients";
 import { getUserProfile, type UserProfile } from "@/lib/user-role";
 import { todayStr } from "@/lib/dates";
 import StatusPipeline from "./StatusPipeline";
@@ -30,13 +37,14 @@ import StatusPipeline from "./StatusPipeline";
    action — one field at a time, so a typo fix can't clobber other fields.
    ───────────────────────────────────────────────────────────────────────── */
 
-type Tab = "profile" | "visits" | "measurements" | "notes";
+type Tab = "profile" | "visits" | "measurements" | "notes" | "history";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "profile", label: "Profile" },
   { id: "visits", label: "Visits" },
   { id: "measurements", label: "Measurements" },
   { id: "notes", label: "Notes & Status" },
+  { id: "history", label: "History" },
 ];
 
 interface ClientDetailProps {
@@ -203,6 +211,7 @@ export default function ClientDetail({ client: initial, onClose, onUpdated, onDe
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [statusError, setStatusError] = useState("");
+  const [phoneMatches, setPhoneMatches] = useState<PhoneMatch[]>([]);
 
   useEffect(() => {
     getUserProfile().then(setProfile);
@@ -332,7 +341,27 @@ export default function ClientDetail({ client: initial, onClose, onUpdated, onDe
           {tab === "profile" && (
             <>
               <EditableField label="Name" value={client.name} onSave={(v) => saveFields({ name: v })} />
-              <EditableField label="Phone" value={client.phone} onSave={(v) => saveFields({ phone: v })} />
+              <EditableField
+                label="Phone"
+                value={client.phone}
+                onSave={async (v) => {
+                  await saveFields({ phone: v });
+                  // Warn (don't block) if another record shares this number
+                  findClientsByPhone(v, client.id).then(setPhoneMatches).catch(() => {});
+                }}
+              />
+              {phoneMatches.length > 0 && (
+                <div style={{ border: "1px solid var(--warn)", background: "#8a5a1f0d", padding: "0.6rem 0.8rem" }}>
+                  <p className="label" style={{ color: "var(--warn)", fontSize: "0.55rem", marginBottom: "0.25rem" }}>
+                    ⚠ This number is also on file for:
+                  </p>
+                  {phoneMatches.map((m) => (
+                    <p key={m.id} style={{ fontSize: "0.78rem", color: "var(--ink)" }}>
+                      {m.name} · {m.branch} · {m.phone}
+                    </p>
+                  ))}
+                </div>
+              )}
               <EditableField label="Email" value={client.email ?? ""} placeholder="No email" onSave={(v) => saveFields({ email: v })} />
               <EditableField
                 label="Branch"
@@ -481,6 +510,9 @@ export default function ClientDetail({ client: initial, onClose, onUpdated, onDe
               <ClientAINote client={client} />
             </>
           )}
+
+          {/* ── HISTORY ── */}
+          {tab === "history" && <HistoryTab clientId={client.id} />}
         </div>
 
         {/* Footer */}
@@ -500,6 +532,78 @@ export default function ClientDetail({ client: initial, onClose, onUpdated, onDe
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Edit history tab ────────────────────────────────────────────────── */
+
+const FIELD_LABELS: Record<string, string> = {
+  name: "Name",
+  phone: "Phone",
+  email: "Email",
+  branch: "Branch",
+  events: "Occasions",
+  event_date: "Event date",
+  event_note: "Event note",
+  alterations: "Alterations",
+  alteration_note: "Alteration note",
+  alteration_status: "Alteration status",
+  special_order: "Special order",
+  special_order_status: "Order status",
+  follow_up: "Follow-up",
+  measurements: "Measurements",
+  visits: "Visits",
+};
+
+function HistoryTab({ clientId }: { clientId: string }) {
+  const [edits, setEdits] = useState<ClientEdit[] | null>(null);
+
+  useEffect(() => {
+    getClientEdits(clientId).then(setEdits).catch(() => setEdits([]));
+  }, [clientId]);
+
+  if (edits === null) {
+    return <p className="label" style={{ fontSize: "0.6rem" }}>Loading history…</p>;
+  }
+
+  if (edits.length === 0) {
+    return (
+      <p style={{ fontSize: "0.8rem", color: "var(--muted)", fontStyle: "italic" }}>
+        No edits recorded yet. Changes made from this screen will appear here
+        once the edit-history migration is live.
+      </p>
+    );
+  }
+
+  const compact = (v: string | null) =>
+    v === null ? "—" : v.length > 80 ? v.slice(0, 80) + "…" : v;
+
+  return (
+    <div className="scroll-list" style={{ maxHeight: 420 }}>
+      {edits.map((e) => (
+        <div key={e.id} className="flex flex-col gap-1 px-4 py-3" style={{ borderBottom: "1px solid var(--line)" }}>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="label" style={{ color: "var(--ink)", fontSize: "0.58rem" }}>
+              {FIELD_LABELS[e.field] ?? e.field}
+            </span>
+            <span className="label" style={{ fontSize: "0.5rem" }}>
+              {new Date(e.edited_at).toLocaleDateString("en-CA", {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+          <p style={{ fontSize: "0.78rem", color: "var(--muted)", wordBreak: "break-word" }}>
+            <span style={{ textDecoration: "line-through", opacity: 0.7 }}>{compact(e.old_value)}</span>
+            {"  →  "}
+            <span style={{ color: "var(--ink)" }}>{compact(e.new_value)}</span>
+          </p>
+          <span className="label" style={{ fontSize: "0.5rem" }}>By {e.edited_by}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -557,6 +661,7 @@ function ClientAINote({ client }: { client: Client }) {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   async function generate() {
     setLoading(true);
@@ -586,6 +691,10 @@ Write only the note, no preamble.`;
         body: JSON.stringify({ query: prompt, mode: "note" }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        setAiError(data.error ?? "AI note failed — try again.");
+        return;
+      }
       setNote(data.result ?? "");
       setGenerated(true);
     } finally {
@@ -613,7 +722,10 @@ Write only the note, no preamble.`;
           {note}
         </p>
       )}
-      {!generated && !loading && (
+      {aiError && (
+        <p className="label" style={{ color: "var(--danger)", fontSize: "0.6rem" }}>{aiError}</p>
+      )}
+      {!generated && !loading && !aiError && (
         <p style={{ fontSize: "0.75rem", color: "var(--muted)", fontStyle: "italic" }}>
           Tap generate for an AI summary of this client.
         </p>

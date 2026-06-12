@@ -13,6 +13,7 @@ import ClientModal from "@/components/ClientModal";
 import PhotoIntake from "@/components/PhotoIntake";
 import { addAnonymousSale } from "@/app/actions/anonymous";
 import { todayStr } from "@/lib/dates";
+import EpicLogo from "@/components/EpicLogo";
 
 type FilterTab = "all" | "followup" | "altready" | "vip";
 
@@ -188,32 +189,27 @@ export default function IntakePage() {
   return (
     <div className="lb-page" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
 
-      {/* Header */}
-      <header style={{ borderBottom: "1px solid var(--line)", padding: "0.75rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-        <svg viewBox="0 0 180 36" height="32" width="160" xmlns="http://www.w3.org/2000/svg">
-          <rect x="0.5" y="0.5" width="179" height="35" fill="none" stroke="#0a0a0a" strokeWidth="1"/>
-          <rect x="1" y="1" width="68" height="34" fill="#0a0a0a"/>
-          <text x="34" y="24" textAnchor="middle" fontFamily="'Outfit', system-ui, sans-serif" fontWeight="700" fontSize="16" fill="#fafaf7" letterSpacing="2">EPIC</text>
-          <text x="124" y="24" textAnchor="middle" fontFamily="'Cormorant Garamond', Georgia, serif" fontStyle="italic" fontWeight="400" fontSize="15" fill="#0a0a0a" letterSpacing="0.5">Menswear</text>
-        </svg>
+      {/* Header — inverted band per the Gallery+Ledger system */}
+      <header className="page-band" style={{ padding: "0.75rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+        <EpicLogo inverted height={32} width={160} />
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           {profile.role !== "employee" && (
             <button
               onClick={() => router.push("/")}
-              style={{ fontFamily: "var(--font-outfit), system-ui", fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--muted)", background: "none", border: "none", cursor: "pointer", padding: "0.5rem" }}
+              style={{ fontFamily: "var(--font-outfit), system-ui", fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "#fafaf799", background: "none", border: "none", cursor: "pointer", padding: "0.5rem" }}
             >
               ← Dashboard
             </button>
           )}
           <div style={{ textAlign: "right" }}>
-            <p style={{ fontFamily: "var(--font-outfit), system-ui", fontSize: "0.7rem", color: "var(--ink)" }}>{profile.name}</p>
-            <p className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>
+            <p style={{ fontFamily: "var(--font-outfit), system-ui", fontSize: "0.7rem", color: "var(--paper)" }}>{profile.name}</p>
+            <p className="label" style={{ fontSize: "0.55rem" }}>
               {profile.role === "employee" ? profile.branch : activeBranch === "All" ? "All branches" : activeBranch}
             </p>
           </div>
           <button
             onClick={handleSignOut}
-            style={{ fontFamily: "var(--font-outfit), system-ui", fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--muted)", background: "none", border: "none", cursor: "pointer", padding: "0.5rem" }}
+            style={{ fontFamily: "var(--font-outfit), system-ui", fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "#fafaf799", background: "none", border: "none", cursor: "pointer", padding: "0.5rem" }}
           >
             Sign out
           </button>

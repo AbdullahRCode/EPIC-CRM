@@ -6,11 +6,17 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_TENANT, BRANCHES } from "@/lib/types";
 import { getSessionProfile } from "@/lib/auth";
 import { todayStr, daysAgoStr } from "@/lib/dates";
+import { checkAiCap } from "@/lib/ai-limit";
 
 export async function POST(req: Request) {
   const profile = await getSessionProfile();
   if (!profile) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const cap = await checkAiCap("summary", profile.userId);
+  if (!cap.allowed) {
+    return NextResponse.json({ error: cap.message }, { status: 429 });
   }
 
   try {

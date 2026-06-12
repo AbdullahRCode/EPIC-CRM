@@ -158,6 +158,69 @@ export async function createClient(
   return data as Client;
 }
 
+/** Stringify a field value for the edit log (bounded length). */
+function logValue(v: unknown): string | null {
+  if (v === undefined || v === null || v === "") return null;
+  const s = typeof v === "string" ? v : JSON.stringify(v);
+  return s.length > 500 ? s.slice(0, 500) + "…" : s;
+}
+
+/** Best-effort edit-history write — must never break a save (the
+    client_edits table only exists once migration 0002 has been run). */
+async function logClientEdits(
+  clientId: string,
+  before: Record<string, unknown>,
+  updates: Partial<Client>,
+  editedBy: string
+): Promise<void> {
+  try {
+    const rows = Object.entries(updates)
+      .filter(([key, val]) => logValue(before[key]) !== logValue(val))
+      .map(([key, val]) => ({
+        tenant_id: DEFAULT_TENANT,
+        client_id: clientId,
+        field: key,
+        old_value: logValue(before[key]),
+        new_value: logValue(val),
+        edited_by: editedBy,
+      }));
+    if (!rows.length) return;
+    const { error } = await getSupabaseAdmin().from("client_edits").insert(rows);
+    if (error) console.warn("[logClientEdits] skipped:", error.message);
+  } catch (err) {
+    console.warn("[logClientEdits] skipped:", err);
+  }
+}
+
+export interface ClientEdit {
+  id: string;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  edited_by: string;
+  edited_at: string;
+}
+
+export async function getClientEdits(clientId: string): Promise<ClientEdit[]> {
+  // Reuse getClient's branch scoping: if the caller can't see the client,
+  // they can't see its history either.
+  const client = await getClient(clientId);
+  if (!client) return [];
+  const { data, error } = await getSupabaseAdmin()
+    .from("client_edits")
+    .select("id, field, old_value, new_value, edited_by, edited_at")
+    .eq("tenant_id", DEFAULT_TENANT)
+    .eq("client_id", clientId)
+    .order("edited_at", { ascending: false })
+    .limit(30);
+  if (error) {
+    // Table missing until migration 0002 runs — treat as empty history
+    console.warn("[getClientEdits]:", error.message);
+    return [];
+  }
+  return (data ?? []) as ClientEdit[];
+}
+
 export async function updateClient(id: string, updates: Partial<Client>): Promise<Client> {
   const profile = await requireSession();
   const safeUpdates = pickUpdatableFields(updates);
@@ -167,6 +230,14 @@ export async function updateClient(id: string, updates: Partial<Client>): Promis
     safeUpdates.branch = profile.branch as Branch;
   }
   validateClientFields(safeUpdates, false);
+
+  // Snapshot the old values of the fields being changed (for the edit log)
+  const { data: before } = await getSupabaseAdmin()
+    .from("clients")
+    .select(Object.keys(safeUpdates).join(",") || "id")
+    .eq("id", id)
+    .eq("tenant_id", DEFAULT_TENANT)
+    .single();
 
   let query = getSupabaseAdmin()
     .from("clients")
@@ -184,7 +255,43 @@ export async function updateClient(id: string, updates: Partial<Client>): Promis
     console.error("[updateClient] Supabase error:", error.message);
     throw new Error(`Failed to update client: ${error.message} (code: ${error.code})`);
   }
+
+  await logClientEdits(
+    id,
+    (before ?? {}) as Record<string, unknown>,
+    safeUpdates,
+    profile.name || profile.email
+  );
+
   return data as Client;
+}
+
+/** Company-wide duplicate-phone lookup (warn-don't-block UX). Returns minimal
+    fields only, so cross-branch matches don't leak full records to employees. */
+export interface PhoneMatch {
+  id: string;
+  name: string;
+  phone: string;
+  branch: string;
+}
+
+export async function findClientsByPhone(phone: string, excludeId?: string): Promise<PhoneMatch[]> {
+  await requireSession();
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 7) return [];
+
+  const { data, error } = await getSupabaseAdmin()
+    .from("clients")
+    .select("id, name, phone, branch")
+    .eq("tenant_id", DEFAULT_TENANT);
+  if (error || !data) return [];
+
+  // Compare on trailing 10 digits so "+1 604..." matches "604..."
+  const norm = (p: string) => p.replace(/\D/g, "").slice(-10);
+  const target = norm(digits);
+  return (data as PhoneMatch[])
+    .filter((c) => c.id !== excludeId && c.phone && norm(c.phone) === target)
+    .slice(0, 5);
 }
 
 export async function deleteClient(id: string): Promise<void> {

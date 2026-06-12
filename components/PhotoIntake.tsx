@@ -76,7 +76,11 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
       if (!editable.length) setErrorMsg("No entries could be read from that photo. Try a clearer shot.");
     } catch (err) {
       console.error(err);
-      setErrorMsg("Could not read the photo — check your connection and try again.");
+      setErrorMsg(
+        err instanceof Error && err.message
+          ? err.message
+          : "Could not read the photo — check your connection and try again."
+      );
     } finally {
       setExtracting(false);
     }

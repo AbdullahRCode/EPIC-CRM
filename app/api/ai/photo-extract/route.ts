@@ -4,11 +4,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { BRANCHES } from "@/lib/types";
 import { getSessionProfile } from "@/lib/auth";
+import { checkAiCap } from "@/lib/ai-limit";
 
 export async function POST(req: NextRequest) {
   const profile = await getSessionProfile();
   if (!profile) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const cap = await checkAiCap("photo", profile.userId);
+  if (!cap.allowed) {
+    return NextResponse.json({ error: cap.message }, { status: 429 });
   }
 
   try {

@@ -5,6 +5,7 @@ import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_TENANT } from "@/lib/types";
 import { getSessionProfile } from "@/lib/auth";
+import { checkAiCap } from "@/lib/ai-limit";
 
 export async function POST(req: NextRequest) {
   const profile = await getSessionProfile();
@@ -15,6 +16,11 @@ export async function POST(req: NextRequest) {
   try {
     const { query, branch, mode } = await req.json();
     if (!query?.trim()) return NextResponse.json({ type: "search", ids: [], interpretation: "" });
+
+    const cap = await checkAiCap(mode === "note" ? "note" : "search", profile.userId);
+    if (!cap.allowed) {
+      return NextResponse.json({ error: cap.message }, { status: 429 });
+    }
 
     // "note" mode: the caller supplies a complete prose prompt (ClientModal AI
     // Note). Skip the search machinery — and the full client-list prompt — and

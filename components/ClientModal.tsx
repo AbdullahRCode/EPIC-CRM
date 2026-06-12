@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Client, Branch, VisitReason, AlterationItem, Visit } from "@/lib/types";
 import { BRANCHES } from "@/lib/types";
-import { createClient } from "@/app/actions/clients";
+import { createClient, findClientsByPhone, type PhoneMatch } from "@/app/actions/clients";
 import { todayStr } from "@/lib/dates";
 import ClientDetail from "./ClientDetail";
 
@@ -96,6 +96,21 @@ function QuickEntryForm({
   const [quick, setQuick] = useState<QuickForm>(() => initQuickForm(defaultBranch as Branch | undefined));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [phoneMatches, setPhoneMatches] = useState<PhoneMatch[]>([]);
+
+  // Company-wide duplicate check when the phone field loses focus —
+  // warns but never blocks (walk-in traffic comes first).
+  async function checkDuplicatePhone() {
+    if (!quick.phone.trim()) {
+      setPhoneMatches([]);
+      return;
+    }
+    try {
+      setPhoneMatches(await findClientsByPhone(quick.phone));
+    } catch {
+      setPhoneMatches([]);
+    }
+  }
 
   async function handleQuickSave() {
     if (!quick.name.trim() || !quick.phone.trim()) return;
@@ -279,8 +294,24 @@ function QuickEntryForm({
               placeholder="+1 604 000 0000"
               value={quick.phone}
               onChange={(e) => setQuick((q) => ({ ...q, phone: e.target.value }))}
+              onBlur={checkDuplicatePhone}
               style={{ minHeight: 44 }}
             />
+            {phoneMatches.length > 0 && (
+              <div style={{ border: "1px solid var(--warn)", background: "#8a5a1f0d", padding: "0.6rem 0.8rem", marginTop: "0.5rem" }}>
+                <p className="label" style={{ color: "var(--warn)", fontSize: "0.55rem", marginBottom: "0.25rem" }}>
+                  ⚠ A client with this number already exists:
+                </p>
+                {phoneMatches.map((m) => (
+                  <p key={m.id} style={{ fontSize: "0.78rem", color: "var(--ink)" }}>
+                    {m.name} · {m.branch} · {m.phone}
+                  </p>
+                ))}
+                <p className="label" style={{ fontSize: "0.5rem", color: "var(--muted)", marginTop: "0.3rem" }}>
+                  Consider opening that record instead — you can still create a new one.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 5. Email */}
