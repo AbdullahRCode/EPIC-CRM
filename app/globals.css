@@ -315,3 +315,54 @@ select.input-line {
     overflow: visible !important;
   }
 }
+
+/* ─── Click-to-edit fields (ClientDetail) ────────────────────────────── */
+
+.ef-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  padding: 0.15rem 0 0.3rem;
+  font-family: var(--font-outfit), system-ui, sans-serif;
+  font-size: 0.88rem;
+  cursor: text;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.ef-value:hover {
+  border-bottom-color: var(--line);
+}
+
+.ef-value.ef-readonly {
+  cursor: default;
+}
+
+.ef-value.ef-readonly:hover {
+  border-bottom-color: transparent;
+}
+
+.ef-pencil {
+  font-size: 0.7rem;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.ef-value:hover .ef-pencil {
+  opacity: 0.7;
+}
+
+/* Tab content entrance */
+@keyframes tabFade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tab-fade { animation: tabFade 0.18s ease; }

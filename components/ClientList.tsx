@@ -518,6 +518,10 @@ export default function ClientList({ initialBranch }: ClientListProps) {
           defaultBranch={branch !== "All" ? branch : undefined}
           onClose={() => setShowModal(false)}
           onSave={handleSave}
+          onUpdated={(saved) =>
+            // Inline field edits in the detail view: sync the row, keep it open
+            setClients((prev) => prev.map((c) => (c.id === saved.id ? saved : c)))
+          }
           onDelete={handleDelete}
         />
       )}

@@ -77,23 +77,9 @@ export default function IntakePage() {
     setConfirm(null);
     setMarkingReady(client.id);
     try {
-      const updated = await updateClient(client.id, {
-        name: client.name,
-        phone: client.phone,
-        email: client.email,
-        branch: client.branch,
-        events: client.events ?? [],
-        event_date: client.event_date,
-        event_note: client.event_note,
-        alterations: client.alterations ?? [],
-        alteration_note: client.alteration_note,
-        alteration_status: "Ready",
-        special_order: client.special_order,
-        special_order_status: client.special_order_status,
-        follow_up: client.follow_up ?? { needed: false },
-        measurements: client.measurements,
-        visits: client.visits ?? [],
-      });
+      // Only touch the one field — sending the whole row would overwrite
+      // concurrent edits from other staff (last-write-wins on JSONB arrays).
+      const updated = await updateClient(client.id, { alteration_status: "Ready" });
       setClients((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
       addToast(`${client.name}'s alterations marked Ready.`);
     } catch {
@@ -445,6 +431,10 @@ export default function IntakePage() {
             await refreshClients(profile.role === "employee" ? profile.branch : "All");
             addToast("Client saved.");
           }}
+          onUpdated={(saved) =>
+            // Inline field edits: sync the list row, keep the panel open
+            setClients((prev) => prev.map((c) => (c.id === saved.id ? saved : c)))
+          }
         />
       )}
 
