@@ -16,7 +16,7 @@ Full detail: `01_AUDIT_ARCHITECTURE.md` · `02_SECURITY_FINDINGS.md` · `03_INTA
 ## What was fixed (9 commits, all local — push when ready)
 All Critical and High code-level issues: cron secret removed + header-based cron auth, service-role fallback eliminated, send-email branch-scoped with session-derived attribution, store-timezone date handling everywhere (with regression tests), AI Note repaired, Calendar in nav, photo-import failures surfaced with retry, server-side validation + column allowlist, alteration-ready email button (Comms log now functions), Comms reads moved server-side (RLS-ready), masked passwords with min length, `ws` CVE patched. New: vitest harness, 11 passing tests; `tsc` and `next build` both clean. Inventory: `04_BUGFIXES_AND_BACKLOG.md`.
 
-**⚠️ Needs you (15 minutes):** run `supabase/migrations/0001_security_roles_rls.sql` (enables RLS + the role migration the app already depends on), set `SUPABASE_SERVICE_ROLE_KEY` / `CRON_SECRET` / `EMAIL_FROM` in Vercel, **rotate `REPORT_SECRET`**, then have all staff re-login. Until the migration runs, production logins land everyone on an empty intake page.
+**⚠️ Needs you (15 minutes):** run `supabase/migrations/0001_security_roles_rls.sql` (enables RLS + the role migration the app already depends on), add `CRON_SECRET` / `EMAIL_FROM` in Vercel (`SUPABASE_SERVICE_ROLE_KEY_EPIC` is already set and is the canonical name), **rotate `REPORT_SECRET` and delete `NEXT_PUBLIC_REPORT_SECRET`**, then have all staff re-login. Until the migration runs, production logins land everyone on an empty intake page.
 
 ## Top 5 highest-impact next moves
 1. **Deploy checklist above** — closes the two Critical holes and unblocks the app. (1 hour)

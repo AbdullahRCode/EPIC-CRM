@@ -30,7 +30,7 @@ Each fix is one commit on `main`; `tsc --noEmit` clean and 11 new unit tests pas
 ## B. Deployment checklist (you must do these — I can't from here)
 
 1. **Run `supabase/migrations/0001_security_roles_rls.sql`** in the Supabase SQL editor *(review emails/branches in section 1 of the script first)*. This is the pending migration the app already depends on **plus RLS** — without it, everyone is an employee and anonymous sales fail. ⚠️ Requires your explicit go-ahead since it changes DB security posture; nothing destructive, no data deleted.
-2. In Vercel env vars: ensure **`SUPABASE_SERVICE_ROLE_KEY`** is set (the code now refuses to run admin writes without it), set **`CRON_SECRET`** (Vercel signs cron calls with it automatically), **rotate `REPORT_SECRET`** (the old `epic-report-2026` value is burned — it's in git history), and set **`EMAIL_FROM`** to your Resend-verified sender.
+2. In Vercel env vars: **`SUPABASE_SERVICE_ROLE_KEY_EPIC`** is the canonical service-role var (already set — the _EPIC suffix distinguishes this business's keys; unsuffixed name accepted as fallback). Add **`CRON_SECRET`** (Vercel signs cron calls with it automatically), **rotate `REPORT_SECRET`** and **delete `NEXT_PUBLIC_REPORT_SECRET`** (both values burned — git history / old client bundles), and set **`EMAIL_FROM`** to your Resend-verified sender.
 3. After the migration, **all staff must sign out and back in** (JWTs cache `app_metadata`).
 4. Have everyone smoke-test: owner login → dashboard; employee login → intake; log a sale; create a client; mark Ready → send email; check Comms page.
 

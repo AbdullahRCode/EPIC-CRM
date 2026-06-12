@@ -20,13 +20,15 @@ export function getSupabase(): SupabaseClient {
 }
 
 // Service role key — bypasses RLS, used in server actions and API routes.
-// Accepts both historical env var names; never falls back to the anon key
+// SUPABASE_SERVICE_ROLE_KEY_EPIC is the canonical name (the _EPIC suffix
+// distinguishes this business's keys from the owner's other projects); the
+// unsuffixed name is accepted as a fallback. Never falls back to the anon key
 // (a silent downgrade that breaks invisibly once RLS is enabled).
 export function getSupabaseAdmin(): SupabaseClient {
   if (!_adminClient) {
     const key =
-      process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY_EPIC;
-    if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY not set");
+      process.env.SUPABASE_SERVICE_ROLE_KEY_EPIC ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY_EPIC not set");
     _adminClient = createClient(getUrl(), key, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
