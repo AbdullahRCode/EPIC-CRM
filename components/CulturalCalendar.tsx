@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import type { CulturalEvent, Branch } from "@/lib/types";
 import { getSeedEvents } from "@/lib/cultural-seeds";
-import { refreshCulturalEvents } from "@/app/actions/cultural";
 
 interface CulturalCalendarProps {
   branch: Branch | "All";
@@ -20,22 +19,11 @@ function daysUntil(dateStr: string): number {
 
 export default function CulturalCalendar({ branch, clientEvents }: CulturalCalendarProps) {
   const [culturalEvents, setCulturalEvents] = useState<CulturalEvent[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
   const [view, setView] = useState<"upcoming" | "cultural" | "clients">("upcoming");
 
   useEffect(() => {
     setCulturalEvents(getSeedEvents());
   }, []);
-
-  async function handleRefresh() {
-    setRefreshing(true);
-    try {
-      const updated = await refreshCulturalEvents();
-      setCulturalEvents(updated);
-    } finally {
-      setRefreshing(false);
-    }
-  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -104,14 +92,6 @@ export default function CulturalCalendar({ branch, clientEvents }: CulturalCalen
             </button>
           ))}
         </div>
-        <button
-          onClick={handleRefresh}
-          className="btn btn-ghost"
-          disabled={refreshing}
-          style={{ fontSize: "0.6rem" }}
-        >
-          {refreshing ? "Refreshing..." : "↺ Refresh via AI"}
-        </button>
       </div>
 
       {/* UPCOMING */}
