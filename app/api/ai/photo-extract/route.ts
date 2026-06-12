@@ -5,6 +5,7 @@ import { getAnthropic, CLAUDE_MODEL } from "@/lib/anthropic";
 import { BRANCHES } from "@/lib/types";
 import { getSessionProfile } from "@/lib/auth";
 import { checkAiCap } from "@/lib/ai-limit";
+import { getPriceListPrompt } from "@/lib/catalog-prompt";
 
 export async function POST(req: NextRequest) {
   const profile = await getSessionProfile();
@@ -63,13 +64,7 @@ For each entry, extract and map into these specific fields:
 - uncertain: true if handwriting unclear or info seems incomplete
 
 EPIC Menswear product knowledge for price verification:
-- Carlo Lusso suits: ~$250 full suit
-- Calvin Klein suits: Jacket $350, Pants $175, Full Suit $450
-- Tommy Hilfiger: ~$475
-- Giorgio Fiorelli, Mantoni, Bertolini, Renoir: $250-$475 range
-- Sports Coats: $150-$350
-- Dress Shirts: $60-$120
-- Accessories (ties, belts): $20-$80
+${await getPriceListPrompt()}
 
 Return ONLY valid JSON:
 {

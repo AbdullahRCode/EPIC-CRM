@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { getUserProfile } from "@/lib/user-role";
 import { useRouter } from "next/navigation";
 import { BRANCHES, type Branch } from "@/lib/types";
+import CatalogManager from "@/components/CatalogManager";
 
 interface Employee {
   id: string;
@@ -227,6 +228,12 @@ export default function SettingsPage() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Product & deals catalog */}
+        <div style={{ borderTop: "1px solid var(--line)", paddingTop: "1.5rem", marginTop: "1.5rem" }}>
+          <p className="label mb-4" style={{ color: "var(--ink)" }}>Products &amp; Deals</p>
+          <CatalogManager />
         </div>
       </div>
     </div>

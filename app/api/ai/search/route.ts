@@ -6,6 +6,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_TENANT } from "@/lib/types";
 import { getSessionProfile } from "@/lib/auth";
 import { checkAiCap } from "@/lib/ai-limit";
+import { getPriceListPrompt } from "@/lib/catalog-prompt";
 
 export async function POST(req: NextRequest) {
   const profile = await getSessionProfile();
@@ -82,11 +83,7 @@ export async function POST(req: NextRequest) {
           content: `You are the EPIC Menswear CRM assistant. You help staff find clients and take quick actions.
 
 EPIC Menswear product catalog (for price verification):
-- Carlo Lusso suits: ~$250 full suit
-- Calvin Klein: Jacket $350, Pants $175, Full Suit $450
-- Tommy Hilfiger: ~$475
-- Giorgio Fiorelli, Mantoni, Bertolini, Renoir: $250-$475
-- Sports Coats: $150-$350, Shirts: $60-$120, Accessories: $20-$80
+${await getPriceListPrompt()}
 
 When a user types a phone number or partial number → return client IDs matching that phone
 When a user types a name → return matching client IDs ranked by relevance
