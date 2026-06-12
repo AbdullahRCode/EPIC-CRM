@@ -11,14 +11,12 @@
 update auth.users
 set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
   || jsonb_build_object('role', 'admin', 'branch', 'All')
-where email = 'abdullah@logorhythmx.com';
+where email in ('abdullah@logorhythmx.com', 'test@epicmenswear.ca');
 
-update auth.users
-set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
-  || jsonb_build_object('role', 'owner', 'branch', 'All')
-where email = 'demo@epicmenswear.ca';
-
--- Everyone else becomes an employee. Assign real branches per user afterwards:
+-- Everyone else becomes an employee. Assign owner role / real branches per
+-- user afterwards with this template (e.g. demo@epicmenswear.ca):
+--   update auth.users set raw_app_meta_data = raw_app_meta_data
+--     || jsonb_build_object('role', 'owner', 'branch', 'All') where email = '...';
 --   update auth.users set raw_app_meta_data = raw_app_meta_data
 --     || jsonb_build_object('branch', 'Victoria') where email = '...';
 update auth.users
