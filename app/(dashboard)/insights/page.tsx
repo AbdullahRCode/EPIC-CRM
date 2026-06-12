@@ -68,7 +68,7 @@ function parseProductGroup(text: string): string {
 }
 
 export default function InsightsPage() {
-  const { branch, ownerMode } = useBranchOwner();
+  const { branch, ownerMode, role } = useBranchOwner();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [rangeState, setRangeState] = useState<RangeState>({
@@ -217,7 +217,9 @@ export default function InsightsPage() {
           >
             Export Report
           </button>
-          {ownerMode && (
+          {/* Trigger is admin-only (server enforces too); the report still
+              goes to the owner's email whoever triggers it. */}
+          {role === "admin" && (
             <button
               className="btn btn-ghost"
               onClick={async () => {

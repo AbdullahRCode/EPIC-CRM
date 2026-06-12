@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useMemo } from "react";
-import type { Client, Branch } from "@/lib/types";
+import { BRANCHES, type Client, type Branch } from "@/lib/types";
 import { getClients, updateClient } from "@/app/actions/clients";
 import { getUserProfile, type UserProfile } from "@/lib/user-role";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
@@ -43,26 +43,28 @@ export default function IntakePage() {
   const [anonItems, setAnonItems] = useState([{ item: "", amount: "" }]);
   const [anonSaving, setAnonSaving] = useState(false);
 
+  // Owner/admin have branch "All": they see every branch and pick one when
+  // logging sales. Employees are pinned to their own branch.
+  const [activeBranch, setActiveBranch] = useState<Branch | "All">("All");
+  const [anonBranch, setAnonBranch] = useState<Branch>(BRANCHES[0]);
+
   useEffect(() => {
     getUserProfile().then(async (p) => {
       if (!p) {
         router.push("/login");
         return;
       }
-      if (p.role === "owner" || p.role === "admin") {
-        router.push("/");
-        return;
-      }
       setProfile(p);
+      if (p.role === "employee") setActiveBranch(p.branch as Branch);
       const all = await getClients();
-      setClients(all.filter((c) => c.branch === p.branch));
+      setClients(p.role === "employee" ? all.filter((c) => c.branch === p.branch) : all);
       setLoading(false);
     });
   }, [router]);
 
   async function refreshClients(branch: string) {
     const all = await getClients();
-    setClients(all.filter((c) => c.branch === branch));
+    setClients(branch === "All" ? all : all.filter((c) => c.branch === branch));
   }
 
   function addToast(message: string, type: "success" | "error" = "success") {
@@ -112,9 +114,11 @@ export default function IntakePage() {
       .filter((i) => i.item.trim() && parseFloat(i.amount) > 0)
       .map((i) => ({ item: i.item.trim(), amount: parseFloat(i.amount) }));
     if (!validItems.length) return;
+    // Employees log to their own branch (server enforces); owner/admin pick one
+    const saleBranch = profile.role === "employee" ? profile.branch : anonBranch;
     setAnonSaving(true);
     try {
-      await addAnonymousSale({ branch: profile.branch, items: validItems, staff: profile.name });
+      await addAnonymousSale({ branch: saleBranch, items: validItems, staff: profile.name });
       addToast("Sale logged");
       closeAnonOverlay();
     } catch {
@@ -130,15 +134,20 @@ export default function IntakePage() {
     router.push("/login");
   }
 
+  const scoped = useMemo(
+    () => (activeBranch === "All" ? clients : clients.filter((c) => c.branch === activeBranch)),
+    [clients, activeBranch]
+  );
+
   const today = todayStr();
-  const todayCount = clients.filter((c) =>
+  const todayCount = scoped.filter((c) =>
     (c.visits ?? []).some((v) => v.date === today)
   ).length;
-  const followUpCount = clients.filter((c) => c.follow_up?.needed).length;
-  const altReadyCount = clients.filter((c) => c.alteration_status === "Ready").length;
+  const followUpCount = scoped.filter((c) => c.follow_up?.needed).length;
+  const altReadyCount = scoped.filter((c) => c.alteration_status === "Ready").length;
 
   const visible = useMemo(() => {
-    let list = clients;
+    let list = scoped;
     if (filter === "followup") list = list.filter((c) => c.follow_up?.needed);
     else if (filter === "altready") list = list.filter((c) => c.alteration_status === "Ready");
     else if (filter === "vip") list = list.filter((c) => deriveTags(c).includes("VIP"));
@@ -155,7 +164,7 @@ export default function IntakePage() {
       const bDate = (b.visits ?? []).at(-1)?.date ?? b.created_at;
       return bDate.localeCompare(aDate);
     });
-  }, [clients, filter, search]);
+  }, [scoped, filter, search]);
 
   if (loading || !profile) {
     return (
@@ -167,7 +176,7 @@ export default function IntakePage() {
 
   // An employee with no branch assigned would otherwise see an empty list and
   // create clients with branch "" that no branch view can find.
-  if (!profile.branch) {
+  if (profile.role === "employee" && !profile.branch) {
     return (
       <div style={{ minHeight: "100vh", background: "var(--paper)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.75rem", padding: "2rem" }}>
         <p className="font-serif" style={{ fontStyle: "italic", fontSize: "1.1rem", color: "var(--ink)" }}>
@@ -202,9 +211,19 @@ export default function IntakePage() {
           <text x="124" y="24" textAnchor="middle" fontFamily="'Cormorant Garamond', Georgia, serif" fontStyle="italic" fontWeight="400" fontSize="15" fill="#0a0a0a" letterSpacing="0.5">Menswear</text>
         </svg>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          {profile.role !== "employee" && (
+            <button
+              onClick={() => router.push("/")}
+              style={{ fontFamily: "var(--font-outfit), system-ui", fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--muted)", background: "none", border: "none", cursor: "pointer", padding: "0.5rem" }}
+            >
+              ← Dashboard
+            </button>
+          )}
           <div style={{ textAlign: "right" }}>
             <p style={{ fontFamily: "var(--font-outfit), system-ui", fontSize: "0.7rem", color: "var(--ink)" }}>{profile.name}</p>
-            <p className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>{profile.branch}</p>
+            <p className="label" style={{ color: "var(--muted)", fontSize: "0.55rem" }}>
+              {profile.role === "employee" ? profile.branch : activeBranch === "All" ? "All branches" : activeBranch}
+            </p>
           </div>
           <button
             onClick={handleSignOut}
@@ -233,6 +252,19 @@ export default function IntakePage() {
 
       {/* Toolbar */}
       <div style={{ padding: "0.75rem 1.5rem", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.75rem", borderBottom: "1px solid var(--line)", flexShrink: 0 }}>
+        {profile.role !== "employee" && (
+          <select
+            className="input-line"
+            value={activeBranch}
+            onChange={(e) => setActiveBranch(e.target.value as Branch | "All")}
+            style={{ fontSize: "0.7rem", minWidth: "8rem" }}
+          >
+            <option value="All">All branches</option>
+            {BRANCHES.map((b) => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </select>
+        )}
         <input
           className="input-line"
           placeholder="Search name or phone…"
@@ -405,12 +437,12 @@ export default function IntakePage() {
       {showModal && (
         <ClientModal
           client={selectedClient ?? undefined}
-          defaultBranch={profile.branch as Branch}
+          defaultBranch={(profile.role === "employee" ? profile.branch : activeBranch !== "All" ? activeBranch : undefined) as Branch | undefined}
           onClose={() => { setShowModal(false); setSelectedClient(null); }}
           onSaved={async () => {
             setShowModal(false);
             setSelectedClient(null);
-            await refreshClients(profile.branch);
+            await refreshClients(profile.role === "employee" ? profile.branch : "All");
             addToast("Client saved.");
           }}
         />
@@ -428,10 +460,26 @@ export default function IntakePage() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
               <p className="label" style={{ color: "var(--ink)", fontSize: "0.6rem" }}>
-                ANONYMOUS SALE · {profile.branch.toUpperCase()}
+                ANONYMOUS SALE · {(profile.role === "employee" ? profile.branch : anonBranch).toUpperCase()}
               </p>
               <button onClick={closeAnonOverlay} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.2rem", color: "var(--muted)" }}>×</button>
             </div>
+
+            {profile.role !== "employee" && (
+              <div style={{ marginBottom: "1rem" }}>
+                <p className="label" style={{ color: "var(--muted)", fontSize: "0.55rem", marginBottom: "0.3rem" }}>Branch</p>
+                <select
+                  className="input-line"
+                  value={anonBranch}
+                  onChange={(e) => setAnonBranch(e.target.value as Branch)}
+                  style={{ fontSize: "0.8rem", width: "100%" }}
+                >
+                  {BRANCHES.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "0.75rem" }}>
               {anonItems.map((item, i) => (
@@ -505,7 +553,7 @@ export default function IntakePage() {
       {/* Photo intake overlay */}
       {showPhoto && (
         <PhotoIntake
-          defaultBranch={profile.branch as Branch}
+          defaultBranch={(profile.role === "employee" ? profile.branch : activeBranch !== "All" ? activeBranch : undefined) as Branch | undefined}
           onImport={(imported) => {
             setClients((prev) => {
               const existingIds = new Set(prev.map((c) => c.id));

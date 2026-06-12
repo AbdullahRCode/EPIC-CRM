@@ -3,6 +3,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { requireSession, requireRole } from "@/lib/auth";
 import { todayStr } from "@/lib/dates";
+import { BRANCHES, type Branch } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
 export interface AnonymousSale {
@@ -49,6 +50,7 @@ export async function addAnonymousSale(sale: {
   // Employees always log against their own branch
   const branch = profile.role === "employee" ? profile.branch : sale.branch;
   if (!branch) throw new Error("No branch assigned");
+  if (!BRANCHES.includes(branch as Branch)) throw new Error(`Unknown branch: ${branch}`);
 
   const supabase = createSupabaseServerClient();
   const today = todayStr();

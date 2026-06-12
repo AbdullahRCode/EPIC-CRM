@@ -59,10 +59,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/intake", request.url));
   }
 
-  // Owner/admin trying to access intake → redirect to dashboard
-  if ((role === "owner" || role === "admin") && pathname.startsWith("/intake")) {
+  // Settings is admin-only — owners are redirected server-side, not just
+  // de-linked in the UI (hiding a nav item is not a security boundary).
+  if (pathname.startsWith("/settings") && role !== "admin") {
     return NextResponse.redirect(new URL("/", request.url));
   }
+
+  // Intake is open to all roles (owner/admin land on the dashboard by
+  // default but may use the intake screen).
 
   return response;
 }

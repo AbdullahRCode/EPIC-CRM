@@ -10,6 +10,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 const NAV = [
   { label: "Logbook", href: "/" },
+  { label: "Intake", href: "/intake" },
   { label: "Insights", href: "/insights", ownerOnly: true },
   { label: "Calendar", href: "/calendar" },
   { label: "Comms", href: "/comms", ownerOnly: true },
@@ -200,7 +201,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </nav>
 
       {/* Page content */}
-      <BranchOwnerContext.Provider value={{ branch, ownerMode }}>
+      <BranchOwnerContext.Provider value={{ branch, ownerMode, role: profile?.role ?? null }}>
         <main className="flex-1 overflow-hidden">{children}</main>
       </BranchOwnerContext.Provider>
     </div>
