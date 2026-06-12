@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { getSessionProfile } from "@/lib/auth";
 
 function getAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY_EPIC!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  return getSupabaseAdmin();
 }
 
 async function requireAdmin(): Promise<NextResponse | null> {

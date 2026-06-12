@@ -19,10 +19,13 @@ export function getSupabase(): SupabaseClient {
   return _client;
 }
 
-// Service role key — bypasses RLS, used in server actions and API routes
+// Service role key — bypasses RLS, used in server actions and API routes.
+// Accepts both historical env var names; never falls back to the anon key
+// (a silent downgrade that breaks invisibly once RLS is enabled).
 export function getSupabaseAdmin(): SupabaseClient {
   if (!_adminClient) {
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const key =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY_EPIC;
     if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY not set");
     _adminClient = createClient(getUrl(), key, {
       auth: { persistSession: false, autoRefreshToken: false },
