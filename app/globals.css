@@ -366,3 +366,191 @@ select.input-line {
 }
 
 .tab-fade { animation: tabFade 0.18s ease; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VISUAL REFRESH PREVIEW — three contrast+motion directions, Logbook only.
+   Same palette throughout: shades/tints/opacity of the existing tokens.
+   Activated via data-theme on <html> by the preview switcher.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Shared motion utilities (used by all directions) ─────────────────── */
+
+@keyframes rowEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes skelShimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@keyframes skelPulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1; }
+}
+
+@keyframes savedFlash {
+  0%   { background: #1f5a3214; }
+  100% { background: transparent; }
+}
+
+@keyframes liveBreath {
+  0%, 100% { box-shadow: 0 0 0 0 #1f5a3240; }
+  50%      { box-shadow: 0 0 0 5px #1f5a3200; }
+}
+
+.skel-row {
+  height: 64px;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+  overflow: hidden;
+}
+
+.skel-bar {
+  height: 10px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--line) 25%, var(--paper-2) 50%, var(--line) 75%);
+  background-size: 200% 100%;
+  animation: skelShimmer 1.4s linear infinite;
+}
+
+.row-flash { animation: savedFlash 1.6s ease-out; }
+
+.live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--good);
+  animation: liveBreath 2.8s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+/* Default (current look) keeps rows hover-tinted via CSS now */
+.lb-row {
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+.lb-row:hover { background: var(--paper-2); }
+
+/* ── DIRECTION A · "Gallery" — separation through elevation ───────────── */
+
+[data-theme="gallery"] .lb-page { background: var(--paper-2); }
+
+[data-theme="gallery"] .lb-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 2px #0a0a0a08, 0 4px 16px #0a0a0a06;
+  margin: 0.75rem 1rem;
+  transition: box-shadow 0.2s ease;
+}
+
+[data-theme="gallery"] .lb-row {
+  border-bottom-color: #0a0a0a0a;
+}
+[data-theme="gallery"] .lb-row:hover {
+  background: var(--paper);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px #0a0a0a0d, 0 8px 24px #0a0a0a0a;
+}
+[data-theme="gallery"] .lb-row:active { transform: translateY(0) scale(0.998); }
+
+[data-theme="gallery"] .stat-num {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+[data-theme="gallery"] .btn { transition: background 0.18s, color 0.18s, transform 0.12s; }
+[data-theme="gallery"] .btn:active { transform: scale(0.97); }
+
+[data-theme="gallery"] .avatar {
+  box-shadow: 0 1px 3px #0a0a0a14;
+  transition: transform 0.18s ease;
+}
+[data-theme="gallery"] .lb-row:hover .avatar { transform: scale(1.05); }
+
+/* ── DIRECTION B · "Ledger" — separation through ink rules ────────────── */
+
+[data-theme="ledger"] .lb-header {
+  background: var(--ink);
+  border-bottom: none;
+}
+[data-theme="ledger"] .lb-header h1,
+[data-theme="ledger"] .lb-header .font-serif { color: var(--paper); }
+[data-theme="ledger"] .lb-header .label { color: #fafaf799; }
+
+[data-theme="ledger"] .lb-toolbar { border-bottom: 2px solid var(--ink); }
+[data-theme="ledger"] .lb-stats  { border-bottom: 1px solid var(--ink); }
+
+[data-theme="ledger"] .lb-row {
+  border-left: 3px solid transparent;
+  transition: border-color 0.15s cubic-bezier(0.2, 0, 0, 1),
+              padding-left 0.15s cubic-bezier(0.2, 0, 0, 1),
+              background 0.15s;
+}
+[data-theme="ledger"] .lb-row:hover {
+  background: transparent;
+  border-left-color: var(--ink);
+  padding-left: calc(1rem + 6px) !important;
+}
+
+[data-theme="ledger"] .stat-num {
+  font-family: var(--font-cormorant), Georgia, serif;
+  font-style: italic;
+  font-size: 1.15em;
+  color: var(--ink);
+}
+
+[data-theme="ledger"] .tag {
+  border-width: 1px;
+  transition: background 0.15s, color 0.15s;
+}
+[data-theme="ledger"] .lb-row:hover .tag-vip { background: var(--vip); color: var(--ink); }
+
+[data-theme="ledger"] .input-line:focus { border-bottom-width: 2px; border-bottom-color: var(--ink); }
+
+/* ── DIRECTION C · "Atelier" — separation through tone, calm breath ───── */
+
+[data-theme="atelier"] .lb-page { background: #0a0a0a03; }
+[data-theme="atelier"] .lb-toolbar,
+[data-theme="atelier"] .lb-stats { background: #0a0a0a05; border-bottom-color: #0a0a0a10; }
+
+[data-theme="atelier"] .lb-row {
+  animation: rowEnter 0.35s ease backwards;
+  animation-delay: calc(var(--i, 0) * 24ms);
+  transition: background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+[data-theme="atelier"] .lb-row:hover {
+  background: var(--paper);
+  transform: scale(1.004);
+  box-shadow: 0 6px 20px #0a0a0a0a;
+}
+
+[data-theme="atelier"] .skel-bar {
+  background: #0a0a0a0d;
+  animation: skelPulse 1.6s ease-in-out infinite;
+}
+
+[data-theme="atelier"] .stat-num {
+  color: var(--ink);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+[data-theme="atelier"] .avatar { background: #0a0a0a08; }
+[data-theme="atelier"] .btn:hover { box-shadow: 0 4px 12px #0a0a0a14; }
+
+/* IG-ready flexible card pattern (all directions inherit) — media slot +
+   colorful badges can drop into .flex-card without fighting the palette */
+.flex-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.flex-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px #0a0a0a0f; }
+.flex-card .media { aspect-ratio: 1 / 1; background: var(--paper-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-row, .skel-bar, .live-dot, .row-flash, .tab-fade { animation: none !important; transition: none !important; }
+}

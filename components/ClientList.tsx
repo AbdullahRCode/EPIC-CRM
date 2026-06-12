@@ -10,6 +10,7 @@ import PhotoIntake from "./PhotoIntake";
 import AnonymousSales from "./AnonymousSales";
 import { getAnonymousSales, type AnonymousSale } from "@/app/actions/anonymous";
 import { todayStr, parseDateLocal } from "@/lib/dates";
+import CountUp from "./CountUp";
 
 type DateRange = "today" | "week" | "month" | "all";
 
@@ -80,6 +81,8 @@ export default function ClientList({ initialBranch }: ClientListProps) {
   const [showModal, setShowModal] = useState(false);
   const [showPhoto, setShowPhoto] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  // Recently-saved row gets a brief flash (visual refresh preview)
+  const [flashId, setFlashId] = useState<string | null>(null);
 
   const loadClients = useCallback(async (b: Branch | "All") => {
     setLoading(true);
@@ -172,8 +175,8 @@ export default function ClientList({ initialBranch }: ClientListProps) {
     <div className="flex flex-col h-full">
       {/* Toolbar */}
       <div
-        className="px-4 sm:px-6 py-4 flex flex-col gap-3"
-        style={{ borderBottom: "1px solid var(--line)" }}
+        className="px-4 sm:px-6 py-4 flex flex-col gap-3 lb-toolbar"
+        style={{ borderBottom: "1px solid var(--line)", transition: "background 0.25s ease" }}
       >
         {/* Text search + filter dropdown + action buttons */}
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
@@ -219,18 +222,20 @@ export default function ClientList({ initialBranch }: ClientListProps) {
 
       {/* Stats bar */}
       <div
-        className="px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-y-1"
-        style={{ borderBottom: "1px solid var(--line)" }}
+        className="px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-y-1 lb-stats"
+        style={{ borderBottom: "1px solid var(--line)", transition: "background 0.25s ease" }}
       >
         <span className="label" style={{ color: "var(--muted)" }}>
           {loading ? (
             "Loading..."
           ) : (
             <>
-              {sorted.length} client{sorted.length !== 1 ? "s" : ""}
-              {" · "}${sorted.reduce((s, c) => s + totalSpend(c), 0).toLocaleString()} revenue
+              <CountUp className="stat-num" value={sorted.length} /> client{sorted.length !== 1 ? "s" : ""}
               {" · "}
-              {sorted.filter((c) => deriveTags(c).includes("VIP")).length} VIP
+              <span className="live-dot" />{" "}
+              <CountUp className="stat-num" prefix="$" value={sorted.reduce((s, c) => s + totalSpend(c), 0)} /> revenue
+              {" · "}
+              <CountUp className="stat-num" value={sorted.filter((c) => deriveTags(c).includes("VIP")).length} /> VIP
             </>
           )}
         </span>
@@ -250,10 +255,18 @@ export default function ClientList({ initialBranch }: ClientListProps) {
       </div>
 
       {/* Client rows */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto lb-card">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <span className="label" style={{ color: "var(--muted)" }}>Loading the logbook...</span>
+          <div aria-label="Loading the logbook">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="skel-row flex items-center gap-4 px-4 sm:px-6">
+                <div className="skel-bar" style={{ width: 36, height: 36, borderRadius: "50%" }} />
+                <div className="flex flex-col gap-2 flex-1">
+                  <div className="skel-bar" style={{ width: `${42 + (i % 3) * 12}%` }} />
+                  <div className="skel-bar" style={{ width: `${20 + (i % 4) * 8}%`, opacity: 0.6 }} />
+                </div>
+              </div>
+            ))}
           </div>
         ) : sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -269,7 +282,7 @@ export default function ClientList({ initialBranch }: ClientListProps) {
           </div>
         ) : (
           <div>
-            {sorted.map((client) => {
+            {sorted.map((client, rowIndex) => {
               const tags = deriveTags(client);
               const spend = totalSpend(client);
               const isVip = tags.includes("VIP");
@@ -281,13 +294,9 @@ export default function ClientList({ initialBranch }: ClientListProps) {
               return (
                 <div
                   key={client.id}
-                  className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-4 cursor-pointer transition-colors"
-                  style={{ borderBottom: "1px solid var(--line)" }}
+                  className={`flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-4 cursor-pointer lb-row ${flashId === client.id ? "row-flash" : ""}`}
+                  style={{ borderBottom: "1px solid var(--line)", ["--i" as string]: Math.min(rowIndex, 14) }}
                   onClick={() => openEdit(client)}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = "var(--paper-2)")
-                  }
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "")}
                 >
                   {/* Avatar */}
                   <div className={`avatar ${isVip ? "avatar-vip" : ""}`}>
@@ -518,10 +527,12 @@ export default function ClientList({ initialBranch }: ClientListProps) {
           defaultBranch={branch !== "All" ? branch : undefined}
           onClose={() => setShowModal(false)}
           onSave={handleSave}
-          onUpdated={(saved) =>
+          onUpdated={(saved) => {
             // Inline field edits in the detail view: sync the row, keep it open
-            setClients((prev) => prev.map((c) => (c.id === saved.id ? saved : c)))
-          }
+            setClients((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
+            setFlashId(null);
+            requestAnimationFrame(() => setFlashId(saved.id));
+          }}
           onDelete={handleDelete}
         />
       )}
