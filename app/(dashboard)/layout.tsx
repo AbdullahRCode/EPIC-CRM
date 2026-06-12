@@ -11,6 +11,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 const NAV = [
   { label: "Logbook", href: "/" },
   { label: "Insights", href: "/insights", ownerOnly: true },
+  { label: "Calendar", href: "/calendar" },
   { label: "Comms", href: "/comms", ownerOnly: true },
   { label: "Settings", href: "/settings", adminOnly: true },
 ];

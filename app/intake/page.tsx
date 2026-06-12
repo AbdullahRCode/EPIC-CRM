@@ -165,6 +165,24 @@ export default function IntakePage() {
     );
   }
 
+  // An employee with no branch assigned would otherwise see an empty list and
+  // create clients with branch "" that no branch view can find.
+  if (!profile.branch) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--paper)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.75rem", padding: "2rem" }}>
+        <p className="font-serif" style={{ fontStyle: "italic", fontSize: "1.1rem", color: "var(--ink)" }}>
+          No branch assigned
+        </p>
+        <p className="label" style={{ color: "var(--muted)", textAlign: "center" }}>
+          Ask your admin to assign your account to a branch, then sign in again.
+        </p>
+        <button className="btn label" onClick={handleSignOut} style={{ marginTop: "1rem", fontSize: "0.65rem" }}>
+          Sign out
+        </button>
+      </div>
+    );
+  }
+
   const FILTER_TABS: { value: FilterTab; label: string }[] = [
     { value: "all", label: "All" },
     { value: "followup", label: "Follow-ups" },

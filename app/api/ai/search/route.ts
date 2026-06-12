@@ -13,8 +13,21 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { query, branch } = await req.json();
+    const { query, branch, mode } = await req.json();
     if (!query?.trim()) return NextResponse.json({ type: "search", ids: [], interpretation: "" });
+
+    // "note" mode: the caller supplies a complete prose prompt (ClientModal AI
+    // Note). Skip the search machinery — and the full client-list prompt — and
+    // return plain text under `result`.
+    if (mode === "note") {
+      const noteMsg = await getAnthropic().messages.create({
+        model: CLAUDE_MODEL,
+        max_tokens: 300,
+        messages: [{ role: "user", content: query }],
+      });
+      const text = noteMsg.content[0].type === "text" ? noteMsg.content[0].text : "";
+      return NextResponse.json({ result: text.trim() });
+    }
 
     // Employees are always scoped to their own branch, whatever they request
     const effectiveBranch = profile.role === "employee" ? profile.branch || "—none—" : branch;

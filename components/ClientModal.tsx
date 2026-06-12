@@ -58,7 +58,8 @@ function initQuickForm(defaultBranch?: Branch): QuickForm {
     name: "",
     phone: "",
     email: "",
-    branch: defaultBranch ?? "Surrey - Guildford",
+    // Guard against non-branch values ("All", "") leaking in as defaults
+    branch: defaultBranch && BRANCHES.includes(defaultBranch) ? defaultBranch : "Surrey - Guildford",
     employee: "",
     purchase: "",
     amount: "",
