@@ -12,6 +12,7 @@ const NAV = [
   { label: "Logbook", href: "/" },
   { label: "Intake", href: "/intake" },
   { label: "Insights", href: "/insights", ownerOnly: true },
+  { label: "Revenue", href: "/revenue", ownerOnly: true },
   { label: "Calendar", href: "/calendar" },
   { label: "Comms", href: "/comms", ownerOnly: true },
   { label: "Settings", href: "/settings", adminOnly: true },
