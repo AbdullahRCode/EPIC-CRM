@@ -825,6 +825,12 @@ export default function ClientModal({
                     colorScheme="good"
                   />
                 </div>
+                {form.alteration_status === "Ready" && initialClient && (
+                  <NotifyButton
+                    clientId={initialClient.id}
+                    hasEmail={Boolean(form.email?.trim())}
+                  />
+                )}
               </div>
             )}
 
@@ -884,6 +890,51 @@ export default function ClientModal({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function NotifyButton({ clientId, hasEmail }: { clientId: string; hasEmail: boolean }) {
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+
+  if (!hasEmail) {
+    return (
+      <p className="label" style={{ color: "var(--muted)", fontSize: "0.6rem" }}>
+        Add an email address to notify this client their alterations are ready.
+      </p>
+    );
+  }
+
+  async function send() {
+    setState("sending");
+    try {
+      const res = await fetch("/api/comms/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, statusType: "alteration_ready" }),
+      });
+      setState(res.ok ? "sent" : "failed");
+    } catch {
+      setState("failed");
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        className="btn label"
+        onClick={send}
+        disabled={state === "sending" || state === "sent"}
+        style={{ fontSize: "0.6rem", letterSpacing: "0.12em", borderColor: "var(--good)", color: "var(--good)" }}
+      >
+        {state === "sending" ? "Sending…" : state === "sent" ? "✓ Email sent" : "✉ Email client — ready for pickup"}
+      </button>
+      {state === "failed" && (
+        <span className="label" style={{ color: "var(--danger)", fontSize: "0.6rem" }}>
+          Send failed — try again
+        </span>
+      )}
     </div>
   );
 }

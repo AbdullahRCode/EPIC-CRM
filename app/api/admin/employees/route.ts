@@ -58,6 +58,9 @@ export async function POST(req: Request) {
     if (!["owner", "employee"].includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
+    if (typeof password !== "string" || password.length < 8) {
+      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+    }
 
     const { data, error } = await getAdmin().auth.admin.createUser({
       email,

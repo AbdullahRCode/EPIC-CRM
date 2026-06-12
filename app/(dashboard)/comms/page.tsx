@@ -4,8 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import type { Comm } from "@/lib/types";
-import { getSupabase } from "@/lib/supabase";
-import { DEFAULT_TENANT } from "@/lib/types";
+import { getComms } from "@/app/actions/comms";
 import { useBranchOwner } from "@/lib/branch-context";
 
 export default function CommsPage() {
@@ -17,13 +16,9 @@ export default function CommsPage() {
     async function load() {
       setLoading(true);
       try {
-        const { data } = await getSupabase()
-          .from("comms")
-          .select("*")
-          .eq("tenant_id", DEFAULT_TENANT)
-          .order("created_at", { ascending: false })
-          .limit(200);
-        setComms((data ?? []) as Comm[]);
+        setComms(await getComms());
+      } catch {
+        setComms([]);
       } finally {
         setLoading(false);
       }

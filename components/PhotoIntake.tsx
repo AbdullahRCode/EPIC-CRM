@@ -47,11 +47,18 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
   const [extracting, setExtracting] = useState(false);
   const [entries, setEntries] = useState<EntryEdit[]>([]);
   const [importing, setImporting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function processImage(file: File) {
     setExtracting(true);
     setEntries([]);
+    setErrorMsg("");
+    if (file.size > 4 * 1024 * 1024) {
+      setErrorMsg("Photo is too large (max 4 MB). Try a smaller photo or a screenshot of it.");
+      setExtracting(false);
+      return;
+    }
     try {
       const fd = new FormData();
       fd.append("image", file);
@@ -66,8 +73,10 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
         branch: (e.branch as Branch) ?? defaultBranch ?? "Surrey - Guildford",
       }));
       setEntries(editable);
+      if (!editable.length) setErrorMsg("No entries could be read from that photo. Try a clearer shot.");
     } catch (err) {
       console.error(err);
+      setErrorMsg("Could not read the photo — check your connection and try again.");
     } finally {
       setExtracting(false);
     }
@@ -89,7 +98,11 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
     const toImport = entries.filter((e) => e.include && e.name?.trim());
     if (!toImport.length) return;
     setImporting(true);
+    setErrorMsg("");
 
+    // Import row-by-row, collecting failures instead of dying silently on the
+    // first error and losing the rest of the page.
+    const failed: string[] = [];
     try {
       const created: Client[] = [];
       for (const entry of toImport) {
@@ -103,7 +116,8 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
           notes: entry.remarks ?? "",
         };
 
-        const client = await createClient({
+        try {
+          const client = await createClient({
           name: entry.name,
           phone: entry.phone ?? "",
           email: entry.email ?? "",
@@ -128,10 +142,25 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
           visits: visit.items || visit.notes || visit.spend
             ? [visit]
             : [],
-        });
-        created.push(client);
+          });
+          created.push(client);
+        } catch (err) {
+          console.error(`Import failed for ${entry.name}:`, err);
+          failed.push(entry.name);
+        }
       }
-      onImport(created);
+      if (failed.length) {
+        // onImport closes the overlay, which would destroy the retry UI —
+        // keep the failed rows on screen instead. Saved rows show up on the
+        // next list refresh.
+        setErrorMsg(
+          `Imported ${created.length} of ${toImport.length}. Failed: ${failed.join(", ")}. ` +
+            "Those rows are still listed above — fix and retry."
+        );
+        setEntries((prev) => prev.filter((e) => failed.includes(e.name)));
+      } else {
+        onImport(created);
+      }
     } finally {
       setImporting(false);
     }
@@ -207,6 +236,11 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
                 onChange={handleFileInput}
               />
             </div>
+          )}
+          {!entries.length && errorMsg && (
+            <p className="label" style={{ color: "var(--danger)", fontSize: "0.65rem", lineHeight: 1.5 }}>
+              {errorMsg}
+            </p>
           )}
 
           {/* Extracted entries */}
@@ -306,6 +340,12 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
                 ))}
               </div>
 
+              <div className="flex flex-col gap-2">
+              {errorMsg && (
+                <p className="label" style={{ color: "var(--danger)", fontSize: "0.65rem", lineHeight: 1.5 }}>
+                  {errorMsg}
+                </p>
+              )}
               <div className="flex gap-2">
                 <button
                   onClick={handleImport}
@@ -317,11 +357,12 @@ export default function PhotoIntake({ onImport, onClose, defaultBranch }: PhotoI
                     : `Import ${selectedCount} client${selectedCount !== 1 ? "s" : ""}`}
                 </button>
                 <button
-                  onClick={() => setEntries([])}
+                  onClick={() => { setEntries([]); setErrorMsg(""); }}
                   className="btn btn-ghost"
                 >
                   Retry
                 </button>
+              </div>
               </div>
             </>
           )}

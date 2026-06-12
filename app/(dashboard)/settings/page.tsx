@@ -132,8 +132,9 @@ export default function SettingsPage() {
               </label>
               <input
                 className="input-line"
-                type="text"
-                placeholder="Temporary password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Temporary password (8+ chars)"
                 value={form.password}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
               />
