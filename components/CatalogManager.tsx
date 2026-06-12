@@ -13,6 +13,7 @@ import {
   type ProductInput,
   type DealInput,
 } from "@/app/actions/catalog";
+import { syncShopifyCatalog } from "@/app/actions/shopify-sync";
 
 /* Admin-only product & deals catalog manager (rendered inside Settings,
    which middleware already restricts to admins; every action re-checks
@@ -50,6 +51,22 @@ export default function CatalogManager() {
   const [productForm, setProductForm] = useState<ProductInput | null>(null);
   const [dealForm, setDealForm] = useState<DealInput | null>(null);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
+
+  async function runShopifySync() {
+    setSyncing(true);
+    setSyncMsg("");
+    try {
+      const result = await syncShopifyCatalog();
+      setSyncMsg(result.message);
+      if (result.ok) await load();
+    } catch (e) {
+      setSyncMsg(e instanceof Error ? e.message : "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -120,6 +137,18 @@ export default function CatalogManager() {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* Shopify sync — manual trigger; review results before any cron */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <button className="btn" style={{ fontSize: "0.6rem" }} disabled={syncing} onClick={runShopifySync}>
+          {syncing ? "Syncing from epicmenswear.ca…" : "↻ Sync from Shopify"}
+        </button>
+        {syncMsg && (
+          <span className="label" style={{ fontSize: "0.55rem", color: syncMsg.startsWith("Synced") ? "var(--good)" : "var(--warn)" }}>
+            {syncMsg}
+          </span>
+        )}
+      </div>
+
       {error && <p className="label" style={{ color: "var(--danger)", fontSize: "0.6rem" }}>{error}</p>}
 
       {/* ── Products ── */}
