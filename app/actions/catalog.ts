@@ -2,8 +2,9 @@
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { requireRole } from "@/lib/auth";
-import { DEFAULT_TENANT } from "@/lib/types";
+import { DEFAULT_TENANT, type Client } from "@/lib/types";
 import { todayStr } from "@/lib/dates";
+import { parseCategory } from "@/lib/products";
 
 /* Product & deals catalog — admin manages, owner can read (for deal
    suggestions). All access through the service-role client (RLS deny-by-
@@ -81,6 +82,98 @@ export async function getActiveDeals(): Promise<Deal[]> {
       (!d.starts_on || d.starts_on <= today) &&
       (!d.ends_on || d.ends_on >= today)
   );
+}
+
+/* ── Best-deal suggestions for a client's calendar event ──────────────────
+   Cross-references today's active deals against the event type and the
+   client's purchase history. Admin/owner only (calendar is dashboard-side). */
+
+export interface DealSuggestion {
+  label: string;
+  value: string; // "15% off" / "$50 off"
+  reason: string;
+}
+
+const EVENT_CATEGORIES: Record<string, string[]> = {
+  Wedding: ["Suit", "Tuxedo", "Accessories"],
+  Prom: ["Suit", "Tuxedo"],
+  Grad: ["Suit", "Dress Shirt"],
+  Funeral: ["Suit"],
+  Work: ["Suit", "Dress Shirt", "Sports Coat"],
+  Other: [],
+};
+
+export async function getDealSuggestions(
+  clientId: string,
+  eventType: string
+): Promise<{ suggestions: DealSuggestion[]; ready: boolean }> {
+  await requireRole("admin", "owner");
+
+  const { data: client } = await getSupabaseAdmin()
+    .from("clients")
+    .select("name, visits, events, measurements")
+    .eq("id", clientId)
+    .eq("tenant_id", DEFAULT_TENANT)
+    .single();
+
+  const { deals, ready } = await getDeals();
+  if (!ready) return { suggestions: [], ready: false };
+
+  const today = todayStr();
+  const active = deals.filter(
+    (d) =>
+      d.active &&
+      (!d.starts_on || d.starts_on <= today) &&
+      (!d.ends_on || d.ends_on >= today)
+  );
+  if (!active.length) return { suggestions: [], ready: true };
+
+  const visits = ((client as Pick<Client, "visits"> | null)?.visits ?? []) as Client["visits"];
+  const historyText = visits.map((v) => v.items ?? "").join(" · ").toLowerCase();
+  const historyCategories = new Set(
+    visits.flatMap((v) => (v.items?.trim() ? [parseCategory(v.items)] : []))
+  );
+  const eventCategories = EVENT_CATEGORIES[eventType] ?? [];
+
+  const fmtValue = (d: Deal) =>
+    d.discount_type === "percent" ? `${d.discount_value}% off` : `$${d.discount_value} off`;
+
+  const scored = active
+    .map((d) => {
+      let score = 0;
+      const reasons: string[] = [];
+
+      if (d.applies_to_category && eventCategories.includes(d.applies_to_category)) {
+        score += 3;
+        reasons.push(`fits an upcoming ${eventType.toLowerCase()}`);
+      }
+      if (d.applies_to_brand && historyText.includes(d.applies_to_brand.toLowerCase())) {
+        score += 2;
+        reasons.push(`they've bought ${d.applies_to_brand} before`);
+      }
+      if (d.applies_to_category && historyCategories.has(d.applies_to_category)) {
+        score += 1;
+        reasons.push(`matches their purchase history`);
+      }
+      if (!d.applies_to_brand && !d.applies_to_category) {
+        score += 1;
+        reasons.push("applies storewide");
+      }
+
+      return { deal: d, score, reasons };
+    })
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  return {
+    ready: true,
+    suggestions: scored.map((s) => ({
+      label: s.deal.label,
+      value: fmtValue(s.deal),
+      reason: s.reasons.join("; "),
+    })),
+  };
 }
 
 export async function saveProduct(input: ProductInput): Promise<void> {

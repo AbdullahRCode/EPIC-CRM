@@ -9,7 +9,7 @@ import { useBranchOwner } from "@/lib/branch-context";
 import CulturalCalendar from "@/components/CulturalCalendar";
 
 export default function CalendarPage() {
-  const { branch } = useBranchOwner();
+  const { branch, role } = useBranchOwner();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,6 +30,7 @@ export default function CalendarPage() {
   const clientEvents = clients
     .filter((c) => c.event_date && (c.events ?? []).length > 0)
     .map((c) => ({
+      clientId: c.id,
       name: c.name,
       date: c.event_date!,
       eventType: (c.events ?? [])[0] ?? "Other",
@@ -53,7 +54,11 @@ export default function CalendarPage() {
         </div>
       ) : (
         <div className="px-6 py-6">
-          <CulturalCalendar branch={branch} clientEvents={clientEvents} />
+          <CulturalCalendar
+            branch={branch}
+            clientEvents={clientEvents}
+            canSuggest={role === "admin" || role === "owner"}
+          />
         </div>
       )}
     </div>

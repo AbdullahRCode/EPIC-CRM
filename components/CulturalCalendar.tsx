@@ -3,10 +3,21 @@
 import { useState, useEffect } from "react";
 import type { CulturalEvent, Branch } from "@/lib/types";
 import { getSeedEvents } from "@/lib/cultural-seeds";
+import { getDealSuggestions, type DealSuggestion } from "@/app/actions/catalog";
+
+export interface ClientCalendarEvent {
+  clientId: string;
+  name: string;
+  date: string;
+  eventType: string;
+  branch: Branch;
+}
 
 interface CulturalCalendarProps {
   branch: Branch | "All";
-  clientEvents: { name: string; date: string; eventType: string; branch: Branch }[];
+  clientEvents: ClientCalendarEvent[];
+  /** Owner/admin: clicking a client event reveals best-deal suggestions. */
+  canSuggest?: boolean;
 }
 
 function daysUntil(dateStr: string): number {
@@ -17,9 +28,13 @@ function daysUntil(dateStr: string): number {
 }
 
 
-export default function CulturalCalendar({ branch, clientEvents }: CulturalCalendarProps) {
+export default function CulturalCalendar({ branch, clientEvents, canSuggest = false }: CulturalCalendarProps) {
   const [culturalEvents, setCulturalEvents] = useState<CulturalEvent[]>([]);
   const [view, setView] = useState<"upcoming" | "cultural" | "clients">("upcoming");
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const toggleExpanded = (key: string) =>
+    setExpanded((prev) => (prev === key ? null : key));
 
   useEffect(() => {
     setCulturalEvents(getSeedEvents());
@@ -51,7 +66,7 @@ export default function CulturalCalendar({ branch, clientEvents }: CulturalCalen
   // Combined upcoming (next 90 days)
   type CalEvent =
     | { kind: "cultural"; event: CulturalEvent }
-    | { kind: "client"; event: { name: string; date: string; eventType: string; branch: Branch } };
+    | { kind: "client"; event: ClientCalendarEvent };
 
   const upcoming: CalEvent[] = [
     ...filteredCultural.filter((e) => daysUntil(e.date) <= 90).map((e) => ({ kind: "cultural" as const, event: e })),
@@ -105,12 +120,18 @@ export default function CulturalCalendar({ branch, clientEvents }: CulturalCalen
           {upcoming.map((item, i) => {
             const days = daysUntil(item.event.date);
             const isClient = item.kind === "client";
+            const rowKey = isClient
+              ? `u-${(item.event as ClientCalendarEvent).clientId}-${item.event.date}`
+              : `u-cultural-${i}`;
+            const clickable = isClient && canSuggest;
 
             return (
+              <div key={rowKey} style={{ borderBottom: "1px solid var(--line)" }}>
               <div
-                key={i}
                 className="flex items-start gap-4 py-4"
-                style={{ borderBottom: "1px solid var(--line)" }}
+                onClick={clickable ? () => toggleExpanded(rowKey) : undefined}
+                style={{ cursor: clickable ? "pointer" : "default" }}
+                title={clickable ? "Click for deal suggestions" : undefined}
               >
                 {/* Date column */}
                 <div
@@ -177,7 +198,19 @@ export default function CulturalCalendar({ branch, clientEvents }: CulturalCalen
                   >
                     {days === 0 ? "Today" : days === 1 ? "Tomorrow" : `${days}d`}
                   </span>
+                  {clickable && (
+                    <span className="label" style={{ fontSize: "0.45rem", color: "var(--muted)" }}>
+                      {expanded === rowKey ? "▾ deals" : "▸ deals"}
+                    </span>
+                  )}
                 </div>
+              </div>
+              {expanded === rowKey && isClient && (
+                <DealSuggestionsPanel
+                  clientId={(item.event as ClientCalendarEvent).clientId}
+                  eventType={(item.event as ClientCalendarEvent).eventType}
+                />
+              )}
               </div>
             );
           })}
@@ -239,11 +272,14 @@ export default function CulturalCalendar({ branch, clientEvents }: CulturalCalen
           )}
           {filteredClientEvents.map((event, i) => {
             const days = daysUntil(event.date);
+            const rowKey = `c-${event.clientId}-${event.date}-${i}`;
             return (
+              <div key={rowKey} style={{ borderBottom: "1px solid var(--line)" }}>
               <div
-                key={i}
                 className="flex items-center gap-4 py-4"
-                style={{ borderBottom: "1px solid var(--line)" }}
+                onClick={canSuggest ? () => toggleExpanded(rowKey) : undefined}
+                style={{ cursor: canSuggest ? "pointer" : "default" }}
+                title={canSuggest ? "Click for deal suggestions" : undefined}
               >
                 <div className="flex flex-col items-center flex-shrink-0" style={{ width: "3rem" }}>
                   <span
@@ -276,8 +312,61 @@ export default function CulturalCalendar({ branch, clientEvents }: CulturalCalen
                   {days === 0 ? "Today" : `${days}d`}
                 </span>
               </div>
+              {expanded === rowKey && (
+                <DealSuggestionsPanel clientId={event.clientId} eventType={event.eventType} />
+              )}
+              </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Best-deal suggestions for a client event (admin/owner) ───────────── */
+
+function DealSuggestionsPanel({ clientId, eventType }: { clientId: string; eventType: string }) {
+  const [suggestions, setSuggestions] = useState<DealSuggestion[] | null>(null);
+  const [ready, setReady] = useState(true);
+
+  useEffect(() => {
+    getDealSuggestions(clientId, eventType)
+      .then((r) => {
+        setSuggestions(r.suggestions);
+        setReady(r.ready);
+      })
+      .catch(() => {
+        setSuggestions([]);
+      });
+  }, [clientId, eventType]);
+
+  return (
+    <div className="tab-fade" style={{ background: "var(--paper-2)", border: "1px solid var(--line)", padding: "0.75rem 1rem", margin: "0 0 1rem 3.75rem" }}>
+      <p className="label" style={{ fontSize: "0.5rem", marginBottom: "0.4rem", color: "var(--ink)" }}>
+        ✦ Suggested deals for this client
+      </p>
+      {suggestions === null ? (
+        <p className="label" style={{ fontSize: "0.55rem" }}>Checking active deals…</p>
+      ) : !ready ? (
+        <p className="label" style={{ fontSize: "0.55rem", color: "var(--warn)" }}>
+          Catalog not set up yet — run migration 0003 and sync or add deals in Settings.
+        </p>
+      ) : suggestions.length === 0 ? (
+        <p className="label" style={{ fontSize: "0.55rem" }}>
+          No active deals match this client right now.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {suggestions.map((s, i) => (
+            <div key={i} className="flex items-baseline justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <p style={{ fontSize: "0.8rem", color: "var(--ink)" }}>{s.label}</p>
+                <p className="label" style={{ fontSize: "0.5rem" }}>{s.reason}</p>
+              </div>
+              <span className="stat-num" style={{ color: "var(--good)", flexShrink: 0 }}>{s.value}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
